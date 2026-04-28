@@ -15,16 +15,35 @@ no setup instructions.
 - Do not talk about anything else other than skills — no pipelines, 
   no project structure, no hyperparameter talk, no feature categories
 
-## Sample Output Format
-Wrap every sample output in a `<details>` dropdown:
+## Dropdown Rules
+- The "What are Claude Skills?" section is always in a `<details>` dropdown
+- Every skill section is wrapped in its own `<details>` dropdown
+- The sample output inside each skill is a nested `<details>` dropdown
 
+Skill section format:
 ```
+<details>
+<summary><strong>N. {Skill Name}</strong></summary>
+
+**Why this skill exists — first principles:**
+> {explanation}
+
+**What it enforces:**
+- {Rule 1}
+
+**To invoke:**
+\`\`\`
+"{exact command}"
+\`\`\`
+
 <details>
 <summary><strong>Sample output</strong></summary>
 
 \`\`\`
-...output here...
+{real sample output here}
 \`\`\`
+
+</details>
 
 </details>
 ```
@@ -76,7 +95,8 @@ pattern-match its way into a plausible but incorrect answer.
 
 ---
 
-### 1. {Skill Name}
+<details>
+<summary><strong>1. {Skill Name}</strong></summary>
 
 **Why this skill exists — first principles:**
 > {Explain what goes wrong WITHOUT this skill.
@@ -103,9 +123,12 @@ pattern-match its way into a plausible but incorrect answer.
 
 </details>
 
+</details>
+
 ---
 
-### 2. {Skill Name}
+<details>
+<summary><strong>2. {Skill Name}</strong></summary>
 
 **Why this skill exists — first principles:**
 > {Explain what goes wrong WITHOUT this skill.}
@@ -125,6 +148,8 @@ pattern-match its way into a plausible but incorrect answer.
 ```
 {real sample output here}
 ```
+
+</details>
 
 </details>
 

@@ -33,7 +33,8 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 
 ---
 
-### 1. Data Check
+<details>
+<summary><strong>1. Data Check</strong></summary>
 
 **Why this skill exists — first principles:**
 > ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. Without an explicit check at ingestion, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. By the time the model produces a wrong prediction, the source of the error is buried 3 files deep. Claude's default response to missing data is to fill with 0 or drop rows — which destroys the signal (a missing rank may mean a player is unranked, not rank 0).
@@ -64,9 +65,12 @@ Status: PASS
 
 </details>
 
+</details>
+
 ---
 
-### 2. Prediction Report
+<details>
+<summary><strong>2. Prediction Report</strong></summary>
 
 **Why this skill exists — first principles:**
 > Feature importance numbers exist in `feature_importance.csv` — they are the ground truth. Without a skill, an LLM will pattern-match to what a "typical" feature importance report looks like and invent plausible-sounding weights and feature names that do not match the actual file. In a 69-feature model, a fabricated number is undetectable without cross-referencing the source. The skill also requires mapping code names to tennis descriptions — without explicit rules, Claude defaults to generic ML language ("high gain feature") rather than domain-specific interpretation.
@@ -100,9 +104,12 @@ Top 5 Signals:
 
 </details>
 
+</details>
+
 ---
 
-### 3. Player Tournament Prediction
+<details>
+<summary><strong>3. Player Tournament Prediction</strong></summary>
 
 **Why this skill exists — first principles:**
 > A tournament bracket has hard structural constraints — each player occupies exactly one section of the draw relative to the target player, so the same opponent cannot appear in two different rounds. Without explicit rules, an LLM generates probability estimates and opponent lists that look realistic but violate these constraints (e.g. the same player appearing in QF, SF, and Final — physically impossible in a bracket). The skill also enforces a model cutoff rule: a tournament in year Y must use a model trained only on data through year Y−1, otherwise future match outcomes leak into the prediction.
@@ -162,9 +169,12 @@ Djokovic — drops his tournament win ceiling to 11%.
 
 </details>
 
+</details>
+
 ---
 
-### 4. Refactoring
+<details>
+<summary><strong>4. Refactoring</strong></summary>
 
 **Why this skill exists — first principles:**
 > In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files. Without a single source of truth, updates are missed silently: a feature added to `features.py` but not to `train_xgb.py` produces a NaN column with no error; a column renamed in `cleaning.py` but not in `build_dataset.py` breaks the join only at training time. Claude's default is to add the feature wherever it's needed — which means duplicating the definition across files and creating future inconsistency.
@@ -188,11 +198,11 @@ Refactoring Report
 What was refactored: H2H last-5 feature implementation
 
 Files affected:
-| File                 | Change                                                        | Reason                                           |
-|----------------------|---------------------------------------------------------------|--------------------------------------------------|
-| src/features.py      | _update_h2h now tracks last5 deque                           | Single source of truth for all H2H state         |
-| src/simulator.py     | compute_h2h_lookup returns (surface_h2h, overall_h2h) tuple  | Mirrors features.py convention; no duplication   |
-| src/build_dataset.py | Added h2h_last5 / h2h_last5_surface to PLAYER_ATTRS          | One place defines what columns map to A/B        |
+| File                 | Change                                                        | Reason                                             |
+|----------------------|---------------------------------------------------------------|----------------------------------------------------|
+| src/features.py      | _update_h2h now tracks last5 deque                           | Single source of truth for all H2H state           |
+| src/simulator.py     | compute_h2h_lookup returns (surface_h2h, overall_h2h) tuple  | Mirrors features.py convention; no duplication     |
+| src/build_dataset.py | Added h2h_last5 / h2h_last5_surface to PLAYER_ATTRS          | One place defines what columns map to A/B          |
 | models/train_xgb.py  | Added 4 new features after days_since_h2h                    | FEATURES list is the single source of column order |
 
 Before vs After:
@@ -207,9 +217,12 @@ What this enables:
 
 </details>
 
+</details>
+
 ---
 
-### 5. README Update
+<details>
+<summary><strong>5. README Update</strong></summary>
 
 **Why this skill exists — first principles:**
 > Without a prescribed structure, README content drifts toward generic project conventions — setup guides, architecture diagrams, hyperparameter tables — none of which communicate what is distinctive about the project. Claude's default for a data science README is to document the model, the features, and the pipeline. This skill overrides that default: the README exists to showcase the skills framework, not the model.
@@ -217,7 +230,7 @@ What this enables:
 **What it enforces:**
 - Skills-only content: no pipeline diagrams, model metrics, feature tables, or setup instructions
 - Every skill section includes first principles reasoning, an enforces list, an invoke command, and a sample output
-- Sample outputs are always in `<details>` dropdowns
+- Every skill section and sample output is wrapped in a `<details>` dropdown
 
 **To invoke:**
 ```
@@ -228,19 +241,20 @@ What this enables:
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: readme-update skill updated with full README structure
-               template (numbered skills, enforces bullets, invoke
-               code blocks, comparison table, thinking section)
+Invoked after: readme-update skill updated to wrap each skill section
+               in its own <details> dropdown
 
 Changes made:
-  - README already matched updated skill structure — no structural
-    changes required
-  - Updated README Update sample output to reflect this invocation
+  - Wrapped all 5 skill sections in <details> dropdowns
+  - Updated readme-update skill to codify per-skill dropdown rule
+  - README Update sample reflects this invocation
 
 Skills section verified: all 5 skills present with first principles
 reasoning, "What it enforces" bullets, "To invoke" code block, and
-sample output in <details> dropdown.
+sample output — all inside <details> dropdowns.
 ```
+
+</details>
 
 </details>
 
