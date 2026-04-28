@@ -98,8 +98,8 @@ courts sets the bar."]
 ───────────────────────────────
 Summary
 ───────────────────────────────
-Expected exit     : <Round> (most common exit in simulations, X% of runs)
-P(win <round>)    : XX%  ← probability of winning the expected exit round
+Expected exit     : <Round> (last round with P(reach) ≥ 25% — P(reach) = XX%)
+P(win <round>)    : XX%  ← conditional win probability in that round (P(reach next) / P(reach this))
 Toughest match    : <Round> vs <Opponent> (X% win probability)
 P(win tournament) : XX%
 

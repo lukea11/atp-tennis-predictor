@@ -338,6 +338,36 @@ def _make_predict_fn(model, info: dict, player_attrs: dict, h2h: dict):
     return predict
 
 
+# Minimum P(reach round) to count that round as "expected" for the player.
+# Last round at or above this threshold = expected exit.
+# Avoids the flat-distribution problem where modal exit is always R128 for top seeds.
+_REACH_THRESHOLD = 0.25
+
+
+def _expected_exit(round_reached: Counter, exit_counts: Counter, n_sims: int) -> str:
+    """Return the last round where P(reach) >= _REACH_THRESHOLD.
+
+    For strong players whose exit distributions are nearly flat, the modal exit
+    is usually the first round (largest single-round loss probability). This
+    metric instead asks: 'how far is the player genuinely expected to go?' by
+    finding the deepest round they have a 1-in-4 chance of reaching.
+
+    Args:
+        round_reached: How many simulations reached each round label.
+        exit_counts: How many simulations ended at each round (including 'W').
+        n_sims: Total simulations.
+    Returns:
+        Round label of the expected exit (e.g. 'SF', 'QF', 'W').
+    """
+    result = ROUND_LABELS[0]
+    for rl in ROUND_LABELS:
+        if round_reached[rl] / n_sims >= _REACH_THRESHOLD:
+            result = rl
+    if exit_counts['W'] / n_sims >= _REACH_THRESHOLD:
+        result = 'W'
+    return result
+
+
 # ── Result compilation ─────────────────────────────────────────────────────────
 
 def _resolve_player(name: str, draw_attrs: dict) -> int:
@@ -415,7 +445,7 @@ def _compile_results(
         'round_probs':      {r: round_reached[r] / n_sims for r in ROUND_LABELS},
         'win_probability':  exit_counts['W'] / n_sims,
         'opponent_counts':  opp_counts,
-        'expected_exit':    exit_counts.most_common(1)[0][0],
+        'expected_exit':    _expected_exit(round_reached, exit_counts, n_sims),
         'exit_distribution': dict(exit_counts),
         'draw_attrs':       draw_attrs,
         'n_sims':           n_sims,
