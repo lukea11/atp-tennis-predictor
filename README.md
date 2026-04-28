@@ -4,8 +4,7 @@
 
 ---
 
-<details>
-<summary><strong>What are Claude Skills?</strong></summary>
+## What are Claude Skills?
 
 A Claude Skill is a markdown file that codifies a repeatable workflow — instructions an agent references to produce consistent, standardized output.
 
@@ -14,40 +13,29 @@ A Claude Skill is a markdown file that codifies a repeatable workflow — instru
 
 Without a skill, Claude pattern-matches to what the output *historically looked like* — not what is *correct for our specific context.* This is dangerous in quantitative and data-driven work, where a convincing but slightly wrong formula still runs without errors, but produces wrong numbers.
 
-**Skills guardrail against this** by encoding first principles thinking directly into the instruction set — so Claude cannot pattern-match its way into a plausible but incorrect answer.
-
-| | Without Skill | With Skill |
-|---|---|---|
-| Output | Varies, generic | Consistent, standardized |
-| Quality | Claude's default standard | Your standard |
-| Errors | Plausible but wrong | Caught by guardrails |
-| Repeated work | Re-explain every time | Codified once |
-
-> **Rule:** Systematize the known so human judgment is reserved for the unknown.
-
-</details>
+**Skills guardrail against this** by encoding first principles thinking directly into the instruction set — so Claude cannot pattern-match its way into a plausible but incorrect output.
 
 ---
 
-## Skills in this Project
+## Skills in this project
+
+| Skill | Purpose |
+|-------|---------|
+| [Data Check](#data-check) | Validate incoming ATP CSV data before cleaning |
+| [Prediction Report](#prediction-report) | Generate a signal report from feature importance scores |
+| [Player Tournament Prediction](#player-tournament-prediction) | Run a full Monte Carlo simulation for a player in a tournament |
+| [Refactoring](#refactoring) | Enforce loose coupling and single-source-of-truth |
+| [README Update](#readme-update) | Maintain this document to a consistent standard |
 
 ---
 
-<details>
-<summary><strong>1. Data Check</strong></summary>
+## Data Check
 
-**Why this skill exists — first principles:**
-> ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. Without an explicit check at ingestion, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. By the time the model produces a wrong prediction, the source of the error is buried 3 files deep. Claude's default response to missing data is to fill with 0 or drop rows — which destroys the signal (a missing rank may mean a player is unranked, not rank 0).
+**First principles:** ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. Without an explicit check at ingestion, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. By the time the model produces a wrong prediction, the source of the error is buried 3 files deep.
 
-**What it enforces:**
-- Compare every column name against the expected 49-column schema
-- Verify dtypes match expected types (with accepted variations for seed/entry columns)
-- Block the pipeline with FAIL status if any deviation is found — never silently proceed
+The skill enforces a fixed contract: compare every column name and dtype against the expected schema, flag any deviation, and block the pipeline until the issue is resolved.
 
-**To invoke:**
-```
-"run the data check skill"
-```
+**Invoke:** `run the data check skill`
 
 <details>
 <summary><strong>Sample output</strong></summary>
@@ -65,25 +53,15 @@ Status: PASS
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><strong>2. Prediction Report</strong></summary>
+## Prediction Report
 
-**Why this skill exists — first principles:**
-> Feature importance numbers exist in `feature_importance.csv` — they are the ground truth. Without a skill, an LLM will pattern-match to what a "typical" feature importance report looks like and invent plausible-sounding weights and feature names that do not match the actual file. In a 69-feature model, a fabricated number is undetectable without cross-referencing the source. The skill also requires mapping code names to tennis descriptions — without explicit rules, Claude defaults to generic ML language ("high gain feature") rather than domain-specific interpretation.
+**First principles:** Feature importance numbers exist in `feature_importance.csv` — they are the ground truth. Without a skill, an LLM will pattern-match to what a "typical" feature importance report looks like and invent plausible-sounding weights and feature names that do not match the actual file. In a 69-feature model, this error is undetectable without cross-referencing the source.
 
-**What it enforces:**
-- Read directly from `feature_importance.csv` — no estimation or invention
-- Compute decision weight as each feature's exact share of total XGBoost information gain
-- Map every code name to a human-readable tennis description
+The skill reads directly from `feature_importance.csv`, computes each feature's share of total XGBoost information gain, and maps code names to human-readable tennis descriptions. No estimation — every number is derived from the file.
 
-**To invoke:**
-```
-"invoke the prediction report skill"
-```
+**Invoke:** `invoke the prediction report skill`
 
 <details>
 <summary><strong>Sample output</strong></summary>
@@ -104,26 +82,13 @@ Top 5 Signals:
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><strong>3. Player Tournament Prediction</strong></summary>
+## Player Tournament Prediction
 
-**Why this skill exists — first principles:**
-> A tournament bracket has hard structural constraints — each player occupies exactly one section of the draw relative to the target player, so the same opponent cannot appear in two different rounds. Without explicit rules, an LLM generates probability estimates and opponent lists that look realistic but violate these constraints (e.g. the same player appearing in QF, SF, and Final — physically impossible in a bracket). The skill also enforces a model cutoff rule: a tournament in year Y must use a model trained only on data through year Y−1, otherwise future match outcomes leak into the prediction.
+**First principles:** A tournament bracket has hard structural constraints — each player occupies exactly one section of the draw relative to the target player, so the same opponent cannot appear in two different rounds. Without explicit rules, an LLM generates probability estimates and opponent lists that look realistic but violate these constraints. The skill also enforces a model cutoff rule: a tournament in year Y must use a model trained only on data through year Y−1, otherwise the simulation leaks future match outcomes into the prediction.
 
-**What it enforces:**
-- Cross-round deduplication: a player can appear in at most one round row
-- Model cutoff: tournament in year Y uses only a model trained through year Y−1
-- Conditional win probability per round = P(reach next round) / P(reach this round)
-- Cite at least 2 feature values by code name and long name in every report
-
-**To invoke:**
-```
-"Medvedev Australian Open 2024"  or  "simulate Djokovic Roland Garros 2023"
-```
+**Invoke:** Natural language trigger — e.g. `Medvedev Australian Open 2024` or `simulate Djokovic Roland Garros 2023`
 
 <details>
 <summary><strong>Sample output</strong></summary>
@@ -169,25 +134,13 @@ Djokovic — drops his tournament win ceiling to 11%.
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><strong>4. Refactoring</strong></summary>
+## Refactoring
 
-**Why this skill exists — first principles:**
-> In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files. Without a single source of truth, updates are missed silently: a feature added to `features.py` but not to `train_xgb.py` produces a NaN column with no error; a column renamed in `cleaning.py` but not in `build_dataset.py` breaks the join only at training time. Claude's default is to add the feature wherever it's needed — which means duplicating the definition across files and creating future inconsistency.
+**First principles:** In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files. Without a single source of truth, updates are missed: a feature added to `features.py` but not to `train_xgb.py` causes a silent NaN column; a column renamed in `cleaning.py` but not in `build_dataset.py` breaks the join with no error until model training. The skill enforces one rule: every shared constant lives in one place so adding a feature touches one file.
 
-**What it enforces:**
-- All column names, feature lists, and constants defined once (single source of truth)
-- Each file has exactly one responsibility — no feature engineering inside training code
-- Adding a new feature requires touching only one file
-
-**To invoke:**
-```
-"invoke the refactoring skill"
-```
+**Invoke:** `invoke the refactoring skill`
 
 <details>
 <summary><strong>Sample output</strong></summary>
@@ -198,12 +151,12 @@ Refactoring Report
 What was refactored: H2H last-5 feature implementation
 
 Files affected:
-| File                 | Change                                                        | Reason                                             |
-|----------------------|---------------------------------------------------------------|----------------------------------------------------|
-| src/features.py      | _update_h2h now tracks last5 deque                           | Single source of truth for all H2H state           |
-| src/simulator.py     | compute_h2h_lookup returns (surface_h2h, overall_h2h) tuple  | Mirrors features.py convention; no duplication     |
-| src/build_dataset.py | Added h2h_last5 / h2h_last5_surface to PLAYER_ATTRS          | One place defines what columns map to A/B          |
-| models/train_xgb.py  | Added 4 new features after days_since_h2h                    | FEATURES list is the single source of column order |
+| File                | Change                                              | Reason                                      |
+|---------------------|-----------------------------------------------------|---------------------------------------------|
+| src/features.py     | _update_h2h now tracks last5 deque                  | Single source of truth for all H2H state    |
+| src/simulator.py    | compute_h2h_lookup returns (surface_h2h, overall_h2h) tuple | Mirrors features.py convention; no logic duplication |
+| src/build_dataset.py | Added h2h_last5 / h2h_last5_surface to PLAYER_ATTRS | One place defines what columns map to A/B   |
+| models/train_xgb.py | Added 4 new features after days_since_h2h           | FEATURES list is the single source of column order |
 
 Before vs After:
 - Before: H2H state tracked surface-only wins; last-5 required re-scanning all history
@@ -217,74 +170,33 @@ What this enables:
 
 </details>
 
-</details>
-
 ---
 
-<details>
-<summary><strong>5. README Update</strong></summary>
+## README Update
 
-**Why this skill exists — first principles:**
-> Without a prescribed structure, README content drifts toward generic project conventions — setup guides, architecture diagrams, hyperparameter tables — none of which communicate what is distinctive about the project. Claude's default for a data science README is to document the model, the features, and the pipeline. This skill overrides that default: the README exists to showcase the skills framework, not the model.
+**First principles:** Without a prescribed structure, README content drifts toward generic project conventions — setup guides, architecture diagrams, hyperparameter tables — none of which communicate what is actually distinctive about the project. The skill defines a fixed template so each invocation produces the same sections in the same order, and mandates that technical details are excluded unless they directly explain a skill.
 
-**What it enforces:**
-- Skills-only content: no pipeline diagrams, model metrics, feature tables, or setup instructions
-- Every skill section includes first principles reasoning, an enforces list, an invoke command, and a sample output
-- Every skill section and sample output is wrapped in a `<details>` dropdown
-
-**To invoke:**
-```
-"invoke the readme update skill"
-```
+**Invoke:** `invoke the readme update skill`
 
 <details>
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: no structural changes — README already matched skill
+Invoked after: H2H last-5 feature addition, model retrain, README
+               refocus to skills-only content
 
 Changes made:
-  - Updated README Update sample to reflect current invocation
+  - Removed pipeline diagram, feature categories, model metrics,
+    usage commands, and project structure tree
+  - Added "What are Claude Skills?" framing section with
+    guardrail-against-pattern-matching explanation
+  - Added first principles reasoning section to each skill
+  - Updated Player Tournament Prediction sample (no duplicate
+    players across rounds — bracket structure enforced)
+  - Added Refactoring and README Update skill sections
 
-Skills section verified: all 5 skills present with first principles
-reasoning, "What it enforces" bullets, "To invoke" code block, and
-sample output — all inside <details> dropdowns.
+Skills section verified: all 5 skills present with first principles,
+invoke command, and real sample output.
 ```
 
 </details>
-
-</details>
-
----
-
-## The Thinking Behind Skills
-
-<details>
-<summary><strong>Skills vs Fixed Code — when to use each</strong></summary>
-
-| | Fixed Code | Skill |
-|---|---|---|
-| When | Pure computation, deterministic | Needs judgment, narrative, varies |
-| Examples | Cleaning, feature engineering, model training | Reports, validation, documentation |
-| Output | Same every time | Adapts to context |
-
-> **Rule:** Computation is always fixed code. Communication is always a skill.
-
-</details>
-
-<details>
-<summary><strong>Why skills catch what code cannot</strong></summary>
-
-Code catches syntax errors and runtime errors. Skills catch reasoning errors — where the code runs perfectly but produces the wrong answer because the underlying logic violates first principles.
-
-**Example from this project:**
-Without the data check skill, Claude pattern-matches to "missing values = fill with 0" — a reasonable default. But first principles says: missing data in a sports dataset is often itself a signal, not noise. A player missing from rankings may be injured or unranked. Filling with 0 destroys that information.
-
-The skill encodes this reasoning so it is applied consistently — not left to Claude's default judgment.
-
-</details>
-
----
-
-*Built with Claude Code — Anthropic's AI coding agent*
-*Skills framework: systematize the known, reserve judgment for the unknown.*
