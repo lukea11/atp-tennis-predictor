@@ -21,6 +21,12 @@ narrows down the likely winner across all splits in all trees.
 Used to populate the "All Signals" table in the report.
 Each row: Feature code | Long name | Definition | Why it matters
 
+### Matchup Comparison (derived)
+| Feature | Long Name | Definition | Why It Matters |
+|---------|-----------|------------|----------------|
+| rank_pts_diff | Ranking Points Gap | Player A's ranking points minus Player B's ranking points | The single most predictive signal — the relative points gap directly measures the quality difference; what matters is not a player's absolute points, but how many more they have than their opponent |
+| rank_diff | ATP Ranking Gap | Player A's ATP ranking minus Player B's ranking (positive = B ranked higher/better) | The relative ranking gap is more predictive than either player's absolute rank alone — what matters is not that you're ranked 50, but that you're ranked 50 vs an opponent at 120 |
+
 ### Rankings & Seeding
 | Feature | Long Name | Definition | Why It Matters |
 |---------|-----------|------------|----------------|

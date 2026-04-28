@@ -47,6 +47,8 @@ FEATURES = [
     'B_rank', 'B_rank_pts', 'B_seed', 'B_age', 'B_ht', 'B_h2h', 'hand_B_L',
     # H2H context
     'days_since_h2h',
+    # Matchup comparison (derived)
+    'rank_diff', 'rank_pts_diff',
     # Player A — lagged surface stats
     'win_rate_A', 'completed_winrate_A', 'strsets_rate_A', 'tiebreaks_winrate_A',
     'rank_improvement_A', 'injured_during_swing_A', 'matches_played_A',

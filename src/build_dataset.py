@@ -97,6 +97,19 @@ def _merge_lagged(
     return matches.merge(slim, on=['year', id_col, 'surface'], how='left')
 
 
+def _add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add matchup-comparison features derived from A/B player columns.
+
+    Args:
+        df: Dataset DataFrame with A_rank, A_rank_pts, B_rank, B_rank_pts columns.
+    Returns:
+        df with rank_diff and rank_pts_diff columns appended.
+    """
+    df['rank_diff']     = df['A_rank']     - df['B_rank']
+    df['rank_pts_diff'] = df['A_rank_pts'] - df['B_rank_pts']
+    return df
+
+
 def _encode(df: pd.DataFrame) -> pd.DataFrame:
     """Encode surface, tourney level, round, and player handedness.
 
@@ -141,6 +154,7 @@ def build_dataset(feat_df: pd.DataFrame, agg_df: pd.DataFrame) -> pd.DataFrame:
     df = df.dropna(subset=[f'win_rate_A', f'win_rate_B']).reset_index(drop=True)
 
     df = _encode(df)
+    df = _add_derived_features(df)
     return df
 
 

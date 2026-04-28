@@ -25,6 +25,7 @@ FEATURES = [
     'A_rank', 'A_rank_pts', 'A_seed', 'A_age', 'A_ht', 'A_h2h', 'hand_A_L',
     'B_rank', 'B_rank_pts', 'B_seed', 'B_age', 'B_ht', 'B_h2h', 'hand_B_L',
     'days_since_h2h',
+    'rank_diff', 'rank_pts_diff',
     'win_rate_A', 'completed_winrate_A', 'strsets_rate_A', 'tiebreaks_winrate_A',
     'rank_improvement_A', 'injured_during_swing_A', 'matches_played_A',
     'ace_rate_A', 'df_rate_A', 'first_serve_pct_A', 'first_serve_win_pct_A',
@@ -214,6 +215,8 @@ def build_feature_row(
         a['rank'], a['rank_pts'], a['seed'], a['age'], a['ht'], ah, a['hand_L'],
         b['rank'], b['rank_pts'], b['seed'], b['age'], b['ht'], bh, b['hand_L'],
         days,
+        a['rank'] - b['rank'],
+        a['rank_pts'] - b['rank_pts'],
     ]
     for col in LAGGED_STAT_COLS:
         row.append(a.get(col, np.nan))
@@ -407,7 +410,7 @@ def run_simulation(
     tourney_name: str,
     year: int,
     target_name: str,
-    n_sims: int = 1500,
+    n_sims: int = 5000,
     cleaned_path: Path = None,
     agg_path: Path = None,
     model_path: Path = None,
@@ -470,7 +473,7 @@ if __name__ == '__main__':
     parser.add_argument('player',     help='Player name (partial ok)')
     parser.add_argument('tournament', help='Tournament name (partial ok)')
     parser.add_argument('year',       type=int, help='Tournament year')
-    parser.add_argument('--n-sims',   type=int, default=1500,
+    parser.add_argument('--n-sims',   type=int, default=5000,
                         help='Number of simulations (default 1500)')
     args = parser.parse_args()
 
