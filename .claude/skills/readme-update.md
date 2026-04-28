@@ -15,6 +15,7 @@ no setup instructions.
 - Do not talk about anything else other than skills, only focus on skills, so no need to talk about pipelines, project structure, no hyperparameter talk, no need feature categories, no need top features
 
 ## Sample Output Format
+Wrap every skill in a `<details>` dropdown:
 Wrap every sample output in a `<details>` dropdown:
 
 ```
@@ -41,10 +42,6 @@ Wrap every sample output in a `<details>` dropdown:
 A Claude Skill is a markdown file that codifies a repeatable 
 workflow — instructions an agent references to produce 
 consistent, standardized output.
-
-**The skill is a bridge:**
-> Closing the gap between what Claude produces by default 
-  and what our standards actually require.
 
 Without a skill, Claude pattern-matches to what the output 
 *historically looked like* — not what is *correct for our 
