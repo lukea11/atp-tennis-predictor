@@ -23,13 +23,19 @@ BASE_PARAMS = {
     'random_state':          42,
 }
 
+# Previous grid showed reg_alpha/subsample/reg_lambda std of 0.0012 — fix at best.
+# New grid focuses on tree complexity and recency decay.
+FIXED_PARAMS = {
+    'subsample':        0.8,
+    'colsample_bytree': 0.7,
+    'reg_alpha':        0,
+    'reg_lambda':       3,
+}
+
 PARAM_GRID = {
     'max_depth':        [3, 4, 5],
     'min_child_weight': [1, 3, 5],
-    'subsample':        [0.7, 0.8, 0.9],
-    'colsample_bytree': [0.7, 0.8],
-    'reg_alpha':        [0, 0.1, 0.5],
-    'reg_lambda':       [1, 3],
+    'decay_rate':       [0.5, 0.7, 0.9, 1.0],   # 1.0 = no decay (baseline)
 }
 
 FEATURES = [
@@ -60,7 +66,7 @@ def load_splits(path: Path) -> tuple:
     Args:
         path: Path to model_dataset.csv.
     Returns:
-        Tuple (X_train, X_val, y_train, y_val).
+        Tuple (X_train, X_val, y_train, y_val, train_years).
     """
     df = pd.read_csv(path)
     train = df[df['year'].isin(TRAIN_YEARS)]
@@ -68,33 +74,62 @@ def load_splits(path: Path) -> tuple:
     return (
         train[FEATURES], val[FEATURES],
         train['label'],  val['label'],
+        train['year'],
     )
 
 
-def _fit_candidate(params: dict, X_tr, y_tr, X_val, y_val) -> tuple:
+def _compute_weights(years: pd.Series, decay_rate: float) -> np.ndarray:
+    """Compute exponential recency weights so recent matches matter more.
+
+    Most recent training year gets weight 1.0; each prior year is
+    multiplied by decay_rate. decay_rate=1.0 means equal weights.
+
+    Args:
+        years: Series of match years for training rows.
+        decay_rate: Per-year decay factor in (0, 1].
+    Returns:
+        numpy array of sample weights, same length as years.
+    """
+    return decay_rate ** (years.max() - years).values
+
+
+def _fit_candidate(
+    params: dict, X_tr, y_tr, X_val, y_val, sample_weight=None
+) -> tuple:
     """Fit one XGBoost candidate and return its val log-loss and model.
 
     Args:
-        params: Hyperparameter dict (merged with BASE_PARAMS).
+        params: XGBoost hyperparameter dict (merged with BASE_PARAMS and FIXED_PARAMS).
         X_tr, y_tr: Training data.
         X_val, y_val: Validation data for early stopping.
+        sample_weight: Optional per-sample weights for training rows.
     Returns:
         Tuple (val_logloss, fitted_model).
     """
-    model = xgb.XGBClassifier(**{**BASE_PARAMS, **params})
-    model.fit(X_tr, y_tr, eval_set=[(X_val, y_val)], verbose=False)
+    model = xgb.XGBClassifier(**{**BASE_PARAMS, **FIXED_PARAMS, **params})
+    model.fit(
+        X_tr, y_tr,
+        sample_weight=sample_weight,
+        eval_set=[(X_val, y_val)],
+        verbose=False,
+    )
     return model.best_score, model
 
 
 def grid_search(
     X_train: pd.DataFrame, y_train: pd.Series,
     X_val:   pd.DataFrame, y_val:   pd.Series,
+    train_years: pd.Series,
 ) -> tuple:
-    """Exhaustive grid search over PARAM_GRID, evaluated on val log-loss.
+    """Grid search over PARAM_GRID including decay_rate, scored on val log-loss.
+
+    decay_rate is extracted before passing params to XGBClassifier and used
+    to compute exponential recency weights via _compute_weights.
 
     Args:
         X_train, y_train: Training data.
         X_val, y_val: Validation data.
+        train_years: Year of each training row (for weight computation).
     Returns:
         Tuple (best_params_dict, best_model, results_df).
     """
@@ -105,12 +140,17 @@ def grid_search(
 
     results, best_loss, best_params, best_model = [], float('inf'), None, None
     for i, vals in enumerate(combos, 1):
-        params = dict(zip(keys, vals))
-        loss, model = _fit_candidate(params, X_train, y_train, X_val, y_val)
-        results.append({**params, 'val_logloss': loss, 'best_iter': model.best_iteration})
+        params      = dict(zip(keys, vals))
+        decay_rate  = params.pop('decay_rate')
+        weights     = _compute_weights(train_years, decay_rate)
+        loss, model = _fit_candidate(params, X_train, y_train, X_val, y_val, weights)
+        results.append({**params, 'decay_rate': decay_rate,
+                        'val_logloss': loss, 'best_iter': model.best_iteration})
         if loss < best_loss:
-            best_loss, best_params, best_model = loss, params, model
-        if i % 20 == 0 or i == total:
+            best_loss   = loss
+            best_params = {**params, 'decay_rate': decay_rate}
+            best_model  = model
+        if i % 12 == 0 or i == total:
             print(f'  {i}/{total}  best so far: {best_loss:.4f}')
 
     results_df = pd.DataFrame(results).sort_values('val_logloss').reset_index(drop=True)
@@ -191,10 +231,21 @@ def save_outputs(
 
 
 if __name__ == '__main__':
-    X_train, X_val, y_train, y_val = load_splits(PROC_DIR / 'model_dataset.csv')
+    X_train, X_val, y_train, y_val, train_years = load_splits(
+        PROC_DIR / 'model_dataset.csv'
+    )
     print(f'Train: {len(X_train):,}  Val: {len(X_val):,}')
+    print('Year weights (decay previewed at each decay_rate candidate):')
+    for dr in PARAM_GRID['decay_rate']:
+        w = _compute_weights(train_years, dr)
+        yr_mean = train_years.groupby(train_years).apply(lambda _: None)
+        by_yr = {yr: round(dr ** (train_years.max() - yr), 3)
+                 for yr in sorted(train_years.unique())}
+        print(f'  decay={dr}: {by_yr}')
 
-    best_params, best_model, grid_results = grid_search(X_train, y_train, X_val, y_val)
+    best_params, best_model, grid_results = grid_search(
+        X_train, y_train, X_val, y_val, train_years
+    )
 
     print('\n── Best hyperparameters ──────────────────')
     for k, v in best_params.items():
