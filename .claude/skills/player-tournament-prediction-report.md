@@ -9,7 +9,7 @@ Roland Garros 2023".
 - `player_name` — full or partial name, case-insensitive
 - `tournament_name` — partial tournament name, case-insensitive
 - `year` — 4-digit year
-- `n_sims` — number of simulations (default 1500)
+- `n_sims` — number of simulations (default 5000)
 
 ## Error handling before running simulation
 
@@ -27,10 +27,29 @@ If `find_tournament` raises ValueError with "No tournament found":
 If it raises "Ambiguous":
 → Reply: "Multiple tournaments match '[name]': [list]. Be more specific."
 
+## Model cutoff rule (no leakage)
+
+For a tournament in year Y, the model must have been trained on data up to year
+Y-1 only. The default model (`models/xgb_model.json`) was trained through 2023.
+
+Before running the simulation:
+1. Determine `cutoff = year - 1`.
+2. If `cutoff < 2023`: check whether `models/xgb_model_thru{cutoff}.json` exists.
+   - If it does NOT exist, run:
+     ```
+     python3 models/train_xgb.py --train-through {cutoff}
+     ```
+     (this produces `models/xgb_model_thru{cutoff}.json`; expect ~2 minutes)
+   - Then pass `--model-path models/xgb_model_thru{cutoff}.json` to the simulator.
+3. If `cutoff >= 2023`: use the default model (no flag needed).
+
 ## Process
-1. Run the simulation:
+1. Apply the model cutoff rule above.
+
+2. Run the simulation:
    ```
-   python3 src/simulator.py "<player_name>" "<tournament_name>" <year> --n-sims <n_sims>
+   python3 src/simulator.py "<player_name>" "<tournament_name>" <year> \
+       --n-sims <n_sims> [--model-path models/xgb_model_thru{cutoff}.json]
    ```
    Parse the JSON output.
 

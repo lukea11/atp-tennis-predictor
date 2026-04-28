@@ -1,3 +1,4 @@
+import argparse
 import itertools
 import json
 import numpy as np
@@ -62,17 +63,27 @@ FEATURES = [
 ]
 
 
-def load_splits(path: Path) -> tuple:
-    """Load dataset and split into train (2019-2023) and val (2024).
+def load_splits(
+    path: Path,
+    train_years: list = None,
+    val_years: list = None,
+) -> tuple:
+    """Load dataset and split into train and val by year.
 
     Args:
         path: Path to model_dataset.csv.
+        train_years: Years to include in training (default TRAIN_YEARS).
+        val_years: Years to include in validation (default VAL_YEARS).
     Returns:
-        Tuple (X_train, X_val, y_train, y_val, train_years).
+        Tuple (X_train, X_val, y_train, y_val, train_year_series).
     """
-    df = pd.read_csv(path)
-    train = df[df['year'].isin(TRAIN_YEARS)]
-    val   = df[df['year'].isin(VAL_YEARS)]
+    if train_years is None:
+        train_years = TRAIN_YEARS
+    if val_years is None:
+        val_years = VAL_YEARS
+    df    = pd.read_csv(path)
+    train = df[df['year'].isin(train_years)]
+    val   = df[df['year'].isin(val_years)]
     return (
         train[FEATURES], val[FEATURES],
         train['label'],  val['label'],
@@ -213,48 +224,70 @@ def save_outputs(
     imp: pd.DataFrame,
     best_params: dict,
     grid_results: pd.DataFrame,
+    train_through: int,
 ) -> None:
     """Save model, feature importance, best params, and full grid results.
+
+    When train_through matches the default (last element of TRAIN_YEARS), the
+    canonical filenames are used. Otherwise a dated suffix is appended so the
+    main model is never overwritten.
 
     Args:
         model: Best fitted XGBClassifier.
         imp: Feature importance DataFrame.
         best_params: Best hyperparameter dict.
         grid_results: Full grid search results DataFrame.
+        train_through: Last training year; used to build dated filenames.
     """
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    model.save_model(MODEL_DIR / 'xgb_model.json')
-    imp.to_csv(MODEL_DIR / 'feature_importance.csv', index=False)
-    grid_results.to_csv(MODEL_DIR / 'grid_search_results.csv', index=False)
-    with open(MODEL_DIR / 'best_params.json', 'w') as f:
+    suffix = '' if train_through == TRAIN_YEARS[-1] else f'_thru{train_through}'
+    model.save_model(MODEL_DIR / f'xgb_model{suffix}.json')
+    imp.to_csv(MODEL_DIR / f'feature_importance{suffix}.csv', index=False)
+    grid_results.to_csv(MODEL_DIR / f'grid_search_results{suffix}.csv', index=False)
+    with open(MODEL_DIR / f'best_params{suffix}.json', 'w') as f:
         json.dump({**BASE_PARAMS, **best_params}, f, indent=2)
-    print('\nSaved: xgb_model.json, feature_importance.csv, '
-          'grid_search_results.csv, best_params.json')
+    print(f'\nSaved: xgb_model{suffix}.json, feature_importance{suffix}.csv, '
+          f'grid_search_results{suffix}.csv, best_params{suffix}.json')
 
 
 if __name__ == '__main__':
-    X_train, X_val, y_train, y_val, train_years = load_splits(
-        PROC_DIR / 'model_dataset.csv'
+    parser = argparse.ArgumentParser(
+        description='Train XGBoost match predictor.'
     )
+    parser.add_argument(
+        '--train-through', type=int, default=TRAIN_YEARS[-1],
+        help=f'Last year to include in training (default {TRAIN_YEARS[-1]}). '
+             'Validation year = train-through + 1.',
+    )
+    args = parser.parse_args()
+
+    train_through = args.train_through
+    train_years   = list(range(TRAIN_YEARS[0], train_through + 1))
+    val_years     = [train_through + 1]
+
+    X_train, X_val, y_train, y_val, tr_years = load_splits(
+        PROC_DIR / 'model_dataset.csv',
+        train_years=train_years,
+        val_years=val_years,
+    )
+    print(f'Train years: {train_years}  Val years: {val_years}')
     print(f'Train: {len(X_train):,}  Val: {len(X_val):,}')
     print('Year weights (decay previewed at each decay_rate candidate):')
     for dr in PARAM_GRID['decay_rate']:
-        w = _compute_weights(train_years, dr)
-        yr_mean = train_years.groupby(train_years).apply(lambda _: None)
-        by_yr = {yr: round(dr ** (train_years.max() - yr), 3)
-                 for yr in sorted(train_years.unique())}
+        by_yr = {yr: round(dr ** (max(train_years) - yr), 3)
+                 for yr in sorted(tr_years.unique())}
         print(f'  decay={dr}: {by_yr}')
 
     best_params, best_model, grid_results = grid_search(
-        X_train, y_train, X_val, y_val, train_years
+        X_train, y_train, X_val, y_val, tr_years
     )
 
     print('\n── Best hyperparameters ──────────────────')
     for k, v in best_params.items():
         print(f'  {k:<22} {v}')
 
-    evaluate(best_model, X_train, y_train, 'Train 2019-2023')
-    evaluate(best_model, X_val,   y_val,   'Val   2024')
+    evaluate(best_model, X_train, y_train, f'Train {train_years[0]}-{train_through}')
+    evaluate(best_model, X_val,   y_val,   f'Val   {val_years[0]}')
 
     imp = feature_importance(best_model)
-    save_outputs(best_model, imp, best_params, grid_results)
+    save_outputs(best_model, imp, best_params, grid_results, train_through)

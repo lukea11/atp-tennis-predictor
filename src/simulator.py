@@ -428,11 +428,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Run ATP tournament simulation for a player.'
     )
-    parser.add_argument('player',     help='Player name (partial ok)')
-    parser.add_argument('tournament', help='Tournament name (partial ok)')
-    parser.add_argument('year',       type=int, help='Tournament year')
-    parser.add_argument('--n-sims',   type=int, default=5000,
+    parser.add_argument('player',       help='Player name (partial ok)')
+    parser.add_argument('tournament',   help='Tournament name (partial ok)')
+    parser.add_argument('year',         type=int, help='Tournament year')
+    parser.add_argument('--n-sims',     type=int, default=5000,
                         help='Number of simulations (default 5000)')
+    parser.add_argument('--model-path', type=str, default=None,
+                        help='Override model JSON path')
     args = parser.parse_args()
 
     try:
@@ -441,6 +443,7 @@ if __name__ == '__main__':
             year=args.year,
             target_name=args.player,
             n_sims=args.n_sims,
+            model_path=Path(args.model_path) if args.model_path else None,
         )
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
