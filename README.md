@@ -26,6 +26,17 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 
 ---
 
+## Pipeline Integration
+
+| Step | Stage | Skill |
+|------|-------|-------|
+| 1 | Ingestion | Data Check Skill (blocking) |
+| 2 | Feature Generation | Refactoring Skill enforced |
+| 3 | Training | Prediction Report Skill auto-generated |
+| 4 | Simulation | Tournament Skill invoked |
+
+---
+
 ## 1. Data Check
 
 **First principles:** ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. Without an explicit check at ingestion, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. By the time the model produces a wrong prediction, the source of the error is buried 3 files deep.

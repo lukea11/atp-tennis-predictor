@@ -12,9 +12,10 @@ no setup instructions.
 - Always frame skills as guardrails against LLM pattern-matching
 - Never include project technical details unless directly 
   relevant to explaining a skill
-- Do not talk about anything else other than skills, only focus on skills,
-  so no need to talk about pipelines, project structure, no hyperparameter 
-  talk, no need feature categories, no need top features
+- Include a Pipeline Integration table immediately after the summary table,
+  showing how each skill slots into the data pipeline (see README Structure)
+- Do not include anything else beyond skills and pipeline integration:
+  no project structure, no hyperparameter talk, no feature categories
 - Table has no hyperlinks — plain text skill names only
 - Table title is "Summary of Skills in Project"
 - Each skill section is always fully visible — no dropdown wrapper
@@ -78,6 +79,17 @@ pattern-match its way into a plausible but incorrect answer.
 | 3 | Player Tournament Prediction | Run a full Monte Carlo simulation for a player in a tournament |
 | 4 | Refactoring | Enforce loose coupling and single-source-of-truth |
 | 5 | README Update | Maintain this document to a consistent standard |
+
+---
+
+## Pipeline Integration
+
+| Step | Stage | Skill |
+|------|-------|-------|
+| 1 | Ingestion | Data Check Skill (blocking) |
+| 2 | Feature Generation | Refactoring Skill enforced |
+| 3 | Training | Prediction Report Skill auto-generated |
+| 4 | Simulation | Tournament Skill invoked |
 
 ---
 
