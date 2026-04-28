@@ -65,12 +65,12 @@ ATP Match Prediction — Signal Report
 Model: XGBoost | decay_rate=0.7 | max_depth=5 | min_child_weight=5
 Val AUC (2024): 0.7180 | Val Accuracy: 65.54% | Best iteration: varies
 
-Top 5 Signals:
+Top 5 Signals (Paired):
  1. rank_pts_diff         11.80%  — Ranking Points Gap
  2. rank_diff              4.30%  — ATP Ranking Gap
- 3. hand_A_L               2.29%  — Player A Left-Handed
- 4. A_rank_pts             2.21%  — Player A Ranking Points
- 5. B_seed                 2.09%  — Player B Seeding
+ 3. rank_pts (A+B)         3.97%  — Player Ranking Points
+ 4. wins_last5 (A+B)       3.65%  — Recent Form
+ 5. seed (A+B)             3.44%  — Tournament Seeding
 ```
 
 </details>
