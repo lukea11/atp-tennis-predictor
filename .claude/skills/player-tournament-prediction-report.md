@@ -90,12 +90,12 @@ disjoint), but always verify the output before displaying.
 Possible Path
 ───────────────────────────────
 Round 128 : <Opponent Name> [or BYE]                          P(win): XX%
-Round 64  : <Name A> (X%) or <Name B> (Y%)                   P(reach): XX%
-Round 32  : <Name A> (X%) or <Name B> (Y%)                   P(reach): XX%
-Round 16  : <Name A> (X%) or <Name B> (Y%)                   P(reach): XX%
-QF        : <Name A> (X%) or <Name B> (Y%)                   P(reach): XX%
-SF        : <Name A> (X%) or <Name B> (Y%)                   P(reach): XX%
-Final     : <Name A> (X%) or <Name B> (Y%)                   P(reach): XX%
+Round 64  : <Name A> (X%) or <Name B> (Y%)                   P(win): XX%
+Round 32  : <Name A> (X%) or <Name B> (Y%)                   P(win): XX%
+Round 16  : <Name A> (X%) or <Name B> (Y%)                   P(win): XX%
+QF        : <Name A> (X%) or <Name B> (Y%)                   P(win): XX%
+SF        : <Name A> (X%) or <Name B> (Y%)                   P(win): XX%
+Final     : <Name A> (X%) or <Name B> (Y%)                   P(win): XX%
 
 ───────────────────────────────
 Toughest Round
@@ -111,8 +111,8 @@ courts sets the bar."]
 ───────────────────────────────
 Summary
 ───────────────────────────────
-Expected exit     : <Round> (last round with P(reach) ≥ 25% — P(reach) = XX%)
-P(win <round>)    : XX%  ← conditional win probability in that round (P(reach next) / P(reach this))
+Expected exit     : <Round>
+P(win <round>)    : XX%  ← conditional win probability in that round (P(win next round) / P(win this round))
 Toughest match    : <Round> vs <Opponent> (X% win probability)
 P(win tournament) : XX%
 

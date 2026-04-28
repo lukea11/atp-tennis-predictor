@@ -58,12 +58,12 @@ Daniil Medvedev: Australian Open 2024 Chances
 Possible Path
 ───────────────────────────────
 Round 128 : Terence Atmane                                          P(win): 87%
-Round 64  : Emil Ruusuvuori (59%) or Patrick Kypson (28%)          P(reach): 87%
-Round 32  : Felix Auger-Aliassime (34%) or Hugo Grenier (17%)      P(reach): 73%
-Round 16  : Grigor Dimitrov (22%) or Alejandro Davidovich Fokina   P(reach): 60%
-QF        : Holger Rune (11%) or Hubert Hurkacz (10%)              P(reach): 47%
-SF        : Carlos Alcaraz (14%) or Alexander Zverev (6%)          P(reach): 35%
-Final     : Novak Djokovic (8%) or Jannik Sinner (4%)              P(reach): 20%
+Round 64  : Emil Ruusuvuori (59%) or Patrick Kypson (28%)          P(win): 84%
+Round 32  : Felix Auger-Aliassime (34%) or Hugo Grenier (17%)      P(win): 82%
+Round 16  : Grigor Dimitrov (22%) or Alejandro Davidovich Fokina   P(win): 79%
+QF        : Holger Rune (11%) or Hubert Hurkacz (10%)              P(win): 74%
+SF        : Carlos Alcaraz (14%) or Alexander Zverev (6%)          P(win): 58%
+Final     : Novak Djokovic (8%) or Jannik Sinner (4%)              P(win): 53%
 
 ───────────────────────────────
 Toughest Round
@@ -77,7 +77,7 @@ probability in that matchup.
 ───────────────────────────────
 Summary
 ───────────────────────────────
-Expected exit     : SF (last round with P(reach) ≥ 25% — P(reach) = 35%)
+Expected exit     : SF
 P(win SF)         : 58%
 Toughest match    : Final vs Djokovic (53% win probability)
 P(win tournament) : 11%
