@@ -108,6 +108,51 @@ Top 5 Signals:
 ```
 </details>
 
+<details>
+<summary><strong>Refactoring</strong> — after adding H2H last-5 features</summary>
+
+```
+### Refactoring Report
+
+**What was refactored:** H2H last-5 feature implementation
+
+**Files affected:**
+| File | Change | Reason |
+|------|--------|--------|
+| src/features.py | _update_h2h now tracks last5 deque; compute_h2h maintains db_surface + db_overall | Single source of truth for all H2H state |
+| src/simulator.py | compute_h2h_lookup returns (surface_h2h, overall_h2h) tuple | Mirrors features.py convention; no logic duplication |
+| src/build_dataset.py | Added h2h_last5 / h2h_last5_surface to PLAYER_ATTRS | One place defines what columns map to A/B |
+| models/train_xgb.py | Added 4 new features after days_since_h2h | FEATURES list is the single source of column order |
+
+**Before vs After:**
+- Before: H2H state tracked surface-only wins; last-5 required re-scanning all history
+- After: FIFO deque (maxlen=5) updated in-place; last5_sequence stored as space-separated
+  string ("1 0 1 1 0") in both CSVs so future updates are a single append + drop
+
+**What this enables:**
+- Adding last-5 for a new match: append to last5_sequence, recompute A_wins_last5 only
+- Adding a new H2H feature: extend the deque or add a new column to _update_h2h only
+```
+</details>
+
+<details>
+<summary><strong>README Update</strong> — this document is the output</summary>
+
+```
+Invoked after: H2H last-5 feature addition, model retrain, bug fix
+                in player tournament prediction sample output
+
+Changes made:
+  - Added H2H last-5 to feature categories table
+  - Updated top-10 decision weight table (B_h2h_last5 now #7)
+  - Replaced fabricated prediction sample with real simulation output
+    for Medvedev AO 2024 (no duplicate players across rounds)
+  - Added Refactoring and README Update skill sample outputs
+
+Skills section verified: all 5 skills listed with purpose and sample.
+```
+</details>
+
 ---
 
 ## Pipeline
@@ -171,7 +216,7 @@ All lagged stats use each player's prior-year same-surface stats to prevent data
 | Matchup comparison | `rank_diff`, `rank_pts_diff` | Derived from player A/B ranks at match time |
 | Rankings & seeding | `A/B_rank`, `A/B_rank_pts`, `A/B_seed` | Match-time values from the draw |
 | H2H — cumulative | `A/B_h2h`, `days_since_h2h` | Surface-specific prior win counts |
-| H2H — last 5 | `A/B_h2h_last5`, `A/B_h2h_last5_surface` | Overall and surface-specific last-5 win counts; raw FIFO sequence stored in `h2h_database.csv` for easy future updates |
+| H2H — last 5 | `A/B_h2h_last5`, `A/B_h2h_last5_surface` | Overall and surface-specific last-5 win counts; raw FIFO sequence stored in `h2h_database.csv` (surface) and `h2h_database_overall.csv` (all surfaces) for easy future updates |
 | Form & momentum | `A/B_win_streak`, `A/B_win_streak_surface`, `A/B_wins_last5` | Pre-match rolling state; surface streak resets on loss or surface change |
 | Tournament history | `A/B_tourney_titles`, `A/B_tourney_win_rate`, `A/B_tourney_matches` | Bayesian-smoothed win rate (prior = 3 pseudo-matches); data from 2018 only — titles before 2018 are not visible to the model |
 | Home advantage | `A/B_is_home` | Player IOC country code vs tournament host country |
