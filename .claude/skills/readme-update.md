@@ -15,19 +15,16 @@ no setup instructions.
 - Do not talk about anything else other than skills, only focus on skills,
   so no need to talk about pipelines, project structure, no hyperparameter 
   talk, no need feature categories, no need top features
-- Wrap each individual skill section in a `<details>` dropdown
-- Number each skill in both the table and the dropdown header
-- Table of contents has no hyperlinks — plain numbered list only
-- Every skill is collapsed by default
-- Sample output is a nested `<details>` dropdown inside the skill dropdown
+- Table has no hyperlinks — plain text skill names only
+- Table title is "Summary of Skills in Project"
+- Each skill section is always fully visible — no dropdown wrapper
+- Only the sample output is wrapped in a `<details>` dropdown
 
 ## Sample Output Format
-Wrap every skill in a `<details>` dropdown:
-Wrap every sample output in a nested `<details>` dropdown:
+Only the sample output gets a dropdown:
 
 ```
-<details>
-<summary><strong>N. Skill Name</strong></summary>
+**N. Skill Name**
 
 **First principles:** ...
 
@@ -41,7 +38,8 @@ Wrap every sample output in a nested `<details>` dropdown:
 \`\`\`
 
 </details>
-</details>
+
+---
 ```
 
 ---
@@ -70,7 +68,7 @@ pattern-match its way into a plausible but incorrect answer.
 
 ---
 
-## Skills in this project
+## Summary of Skills in Project
 
 | # | Skill | Purpose |
 |---|-------|---------|
@@ -82,8 +80,7 @@ pattern-match its way into a plausible but incorrect answer.
 
 ---
 
-<details>
-<summary><strong>1. Data Check</strong></summary>
+**1. Data Check**
 
 **First principles:** {first principles reasoning}
 
@@ -96,13 +93,11 @@ pattern-match its way into a plausible but incorrect answer.
 {sample output}
 ```
 
-</details>
 </details>
 
 ---
 
-<details>
-<summary><strong>2. Prediction Report</strong></summary>
+**2. Prediction Report**
 
 **First principles:** {first principles reasoning}
 
@@ -115,13 +110,11 @@ pattern-match its way into a plausible but incorrect answer.
 {sample output}
 ```
 
-</details>
 </details>
 
 ---
 
-<details>
-<summary><strong>3. Player Tournament Prediction</strong></summary>
+**3. Player Tournament Prediction**
 
 **First principles:** {first principles reasoning}
 
@@ -134,13 +127,11 @@ pattern-match its way into a plausible but incorrect answer.
 {sample output}
 ```
 
-</details>
 </details>
 
 ---
 
-<details>
-<summary><strong>4. Refactoring</strong></summary>
+**4. Refactoring**
 
 **First principles:** {first principles reasoning}
 
@@ -153,13 +144,11 @@ pattern-match its way into a plausible but incorrect answer.
 {sample output}
 ```
 
-</details>
 </details>
 
 ---
 
-<details>
-<summary><strong>5. README Update</strong></summary>
+**5. README Update**
 
 **First principles:** {first principles reasoning}
 
@@ -172,5 +161,4 @@ pattern-match its way into a plausible but incorrect answer.
 {sample output}
 ```
 
-</details>
 </details>
