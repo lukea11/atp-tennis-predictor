@@ -19,8 +19,14 @@ per match, tournament simulation, player prediction reports.
 
 ## Architecture
 - Fixed code: cleaning.py, features.py, aggregation.py, simulator.py
-- Skills: data-check, prediction-report, readme-update
+- Skills (in .claude/skills/): data-check, prediction-report, player-tournament-prediction-report, refactoring, readme-update
 - Model: XGBoost (Player A win probability)
+
+## Model Design Decisions
+- **Mirror augmentation**: Training data is doubled by swapping all A/B feature pairs and flipping labels. Forces the model to learn symmetric weights — a feature's importance must be the same regardless of which player is arbitrarily assigned as A or B. `A_B_PAIRS` and `NEGATE_ON_MIRROR` in `models/train_xgb.py` define which columns are swapped vs negated.
+- **Paired A/B feature importance**: In prediction reports, A and B versions of the same stat are merged (e.g. `A_rank_pts` + `B_rank_pts` → `rank_pts (A+B)`) to show true signal weight free of the ID-assignment artifact. Implemented in `models/prediction_report.md`.
+- **Player A convention**: Player A is always the player with the lower ATP ID. This is arbitrary — mirror augmentation corrects for any bias this would otherwise introduce.
+- **Recency decay**: Training rows are weighted by `decay_rate ^ (max_year - year)`. Best params: decay_rate=0.7, max_depth=5, min_child_weight=5. Val AUC: 0.7180, Val Accuracy: 65.54% (2024 holdout).
 
 ## Rules (always follow)
 - NEVER use random train/test split — always time-based
