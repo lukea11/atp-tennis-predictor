@@ -69,15 +69,15 @@ The skill reads directly from `feature_importance.csv`, computes each feature's 
 ```
 ATP Match Prediction — Signal Report
 
-Model: XGBoost | decay_rate=1.0 | max_depth=4 | min_child_weight=5
-Val AUC (2024): 0.7126 | Val Accuracy: 63.98% | Best iteration: 78 trees
+Model: XGBoost | decay_rate=0.7 | max_depth=5 | min_child_weight=5
+Val AUC (2024): 0.7180 | Val Accuracy: 65.54% | Best iteration: varies
 
 Top 5 Signals:
- 1. rank_pts_diff         10.26%  — Ranking Points Gap
- 2. rank_diff              4.71%  — ATP Ranking Gap
- 3. A_rank_pts             2.36%  — Player A Ranking Points
- 4. sv_gms_won_pct_A       2.19%  — Player A Service Hold Rate
- 5. completed_winrate_A    2.07%  — Player A Completed-Match Win Rate
+ 1. rank_pts_diff         11.80%  — Ranking Points Gap
+ 2. rank_diff              4.30%  — ATP Ranking Gap
+ 3. hand_A_L               2.29%  — Player A Left-Handed
+ 4. A_rank_pts             2.21%  — Player A Ranking Points
+ 5. B_seed                 2.09%  — Player B Seeding
 ```
 
 </details>

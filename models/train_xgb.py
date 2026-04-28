@@ -72,6 +72,44 @@ FEATURES = [
     'second_serve_win_pct_B', 'bp_save_pct_B', 'sv_gms_won_pct_B', 'rtn_win_pct_B',
 ]
 
+# Symmetric A↔B column pairs — swapped when mirroring a match
+A_B_PAIRS = [
+    ('A_rank',                 'B_rank'),
+    ('A_rank_pts',             'B_rank_pts'),
+    ('A_seed',                 'B_seed'),
+    ('A_age',                  'B_age'),
+    ('A_ht',                   'B_ht'),
+    ('A_h2h',                  'B_h2h'),
+    ('hand_A_L',               'hand_B_L'),
+    ('A_h2h_last5',            'B_h2h_last5'),
+    ('A_h2h_last5_surface',    'B_h2h_last5_surface'),
+    ('A_tourney_titles',       'B_tourney_titles'),
+    ('A_tourney_win_rate',     'B_tourney_win_rate'),
+    ('A_tourney_matches',      'B_tourney_matches'),
+    ('A_is_home',              'B_is_home'),
+    ('A_win_streak',           'B_win_streak'),
+    ('A_win_streak_surface',   'B_win_streak_surface'),
+    ('A_wins_last5',           'B_wins_last5'),
+    ('win_rate_A',             'win_rate_B'),
+    ('completed_winrate_A',    'completed_winrate_B'),
+    ('strsets_rate_A',         'strsets_rate_B'),
+    ('tiebreaks_winrate_A',    'tiebreaks_winrate_B'),
+    ('rank_improvement_A',     'rank_improvement_B'),
+    ('injured_during_swing_A', 'injured_during_swing_B'),
+    ('matches_played_A',       'matches_played_B'),
+    ('ace_rate_A',             'ace_rate_B'),
+    ('df_rate_A',              'df_rate_B'),
+    ('first_serve_pct_A',      'first_serve_pct_B'),
+    ('first_serve_win_pct_A',  'first_serve_win_pct_B'),
+    ('second_serve_win_pct_A', 'second_serve_win_pct_B'),
+    ('bp_save_pct_A',          'bp_save_pct_B'),
+    ('sv_gms_won_pct_A',       'sv_gms_won_pct_B'),
+    ('rtn_win_pct_A',          'rtn_win_pct_B'),
+]
+
+# Derived diff features: A_val - B_val, so must negate (not swap) when mirroring
+NEGATE_ON_MIRROR = ['rank_diff', 'rank_pts_diff']
+
 
 def load_splits(
     path: Path,
@@ -98,6 +136,35 @@ def load_splits(
         train[FEATURES], val[FEATURES],
         train['label'],  val['label'],
         train['year'],
+    )
+
+
+def mirror_augment(
+    X: pd.DataFrame, y: pd.Series, years: pd.Series
+) -> tuple:
+    """Double training data by adding each match with A and B roles swapped.
+
+    For each row, creates a mirror copy where all A/B feature pairs are
+    exchanged and the label is flipped. Diff features (rank_diff,
+    rank_pts_diff) are negated since they are computed as A_val - B_val.
+    Validation data is never augmented — only training rows.
+
+    Args:
+        X: Feature matrix.
+        y: Labels (1 = A wins).
+        years: Year of each row (preserved so decay weights stay correct).
+    Returns:
+        Tuple (X_aug, y_aug, years_aug) with original + mirrored rows.
+    """
+    mirror = X.copy()
+    for a_col, b_col in A_B_PAIRS:
+        mirror[a_col], mirror[b_col] = X[b_col].values, X[a_col].values
+    for col in NEGATE_ON_MIRROR:
+        mirror[col] = -mirror[col]
+    return (
+        pd.concat([X, mirror], ignore_index=True),
+        pd.concat([y, 1 - y], ignore_index=True),
+        pd.concat([years, years], ignore_index=True),
     )
 
 
@@ -280,8 +347,10 @@ if __name__ == '__main__':
         train_years=train_years,
         val_years=val_years,
     )
+    X_train, y_train, tr_years = mirror_augment(X_train, y_train, tr_years)
+
     print(f'Train years: {train_years}  Val years: {val_years}')
-    print(f'Train: {len(X_train):,}  Val: {len(X_val):,}')
+    print(f'Train: {len(X_train):,} (augmented)  Val: {len(X_val):,}')
     print('Year weights (decay previewed at each decay_rate candidate):')
     for dr in PARAM_GRID['decay_rate']:
         by_yr = {yr: round(dr ** (max(train_years) - yr), 3)
