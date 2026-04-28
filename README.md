@@ -26,7 +26,7 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 
 ---
 
-**1. Data Check**
+## 1. Data Check
 
 **First principles:** ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. Without an explicit check at ingestion, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. By the time the model produces a wrong prediction, the source of the error is buried 3 files deep.
 
@@ -50,7 +50,7 @@ Status: PASS
 
 ---
 
-**2. Prediction Report**
+## 2. Prediction Report
 
 **First principles:** Feature importance numbers exist in `feature_importance.csv` — they are the ground truth. Without a skill, an LLM will pattern-match to what a "typical" feature importance report looks like and invent plausible-sounding weights and feature names that do not match the actual file. In a 69-feature model, this error is undetectable without cross-referencing the source.
 
@@ -77,7 +77,7 @@ Top 5 Signals:
 
 ---
 
-**3. Player Tournament Prediction**
+## 3. Player Tournament Prediction
 
 **First principles:** A tournament bracket has hard structural constraints — each player occupies exactly one section of the draw relative to the target player, so the same opponent cannot appear in two different rounds. Without explicit rules, an LLM generates probability estimates and opponent lists that look realistic but violate these constraints. The skill also enforces a model cutoff rule: a tournament in year Y must use a model trained only on data through year Y−1, otherwise the simulation leaks future match outcomes into the prediction.
 
@@ -129,7 +129,7 @@ Djokovic — drops his tournament win ceiling to 11%.
 
 ---
 
-**4. Refactoring**
+## 4. Refactoring
 
 **First principles:** In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files. Without a single source of truth, updates are missed: a feature added to `features.py` but not to `train_xgb.py` causes a silent NaN column; a column renamed in `cleaning.py` but not in `build_dataset.py` breaks the join with no error until model training. The skill enforces one rule: every shared constant lives in one place so adding a feature touches one file.
 
@@ -165,7 +165,7 @@ What this enables:
 
 ---
 
-**5. README Update**
+## 5. README Update
 
 **First principles:** Without a prescribed structure, README content drifts toward generic project conventions — setup guides, architecture diagrams, hyperparameter tables — none of which communicate what is actually distinctive about the project. The skill defines a fixed template so each invocation produces the same sections in the same order, and mandates that technical details are excluded unless they directly explain a skill.
 
