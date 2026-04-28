@@ -30,6 +30,8 @@ FEATURES = [
     'A_rank', 'A_rank_pts', 'A_seed', 'A_age', 'A_ht', 'A_h2h', 'hand_A_L',
     'B_rank', 'B_rank_pts', 'B_seed', 'B_age', 'B_ht', 'B_h2h', 'hand_B_L',
     'days_since_h2h',
+    'A_h2h_last5', 'A_h2h_last5_surface',
+    'B_h2h_last5', 'B_h2h_last5_surface',
     'rank_diff', 'rank_pts_diff',
     'A_tourney_titles', 'A_tourney_win_rate', 'A_tourney_matches',
     'B_tourney_titles', 'B_tourney_win_rate', 'B_tourney_matches',
@@ -218,11 +220,11 @@ def compute_form_lookup(
 def compute_h2h_lookup(
     cleaned_df: pd.DataFrame, player_ids: set,
     surface: str, before_date: pd.Timestamp,
-) -> dict:
+) -> tuple:
     """Compute pairwise H2H records for all draw players before the tournament.
 
-    Only same-surface prior meetings are counted (surface-specific H2H,
-    consistent with how H2H features were built in features.py).
+    Returns both surface-specific and overall dicts, each including last5
+    win counts (wins by player A in last 5 meetings) for the new H2H features.
 
     Args:
         cleaned_df: Full cleaned match DataFrame.
@@ -230,36 +232,48 @@ def compute_h2h_lookup(
         surface: Tournament surface.
         before_date: Tournament start date (exclusive cutoff).
     Returns:
-        Dict: {(player_A_id, player_B_id): {A_wins, B_wins, last_date}}.
-        All keys have player_A_id < player_B_id.
+        Tuple (surface_h2h, overall_h2h), each a dict keyed by
+        (player_A_id, player_B_id) with player_A_id < player_B_id.
+        Values contain: A_wins, B_wins, last_date, A_last5, last5_count.
     """
-    prior = cleaned_df[
-        (cleaned_df['tourney_date'] < before_date)
-        & (cleaned_df['surface'] == surface)
-        & cleaned_df['winner_id'].isin(player_ids)
+    player_mask = (
+        cleaned_df['winner_id'].isin(player_ids)
         & cleaned_df['loser_id'].isin(player_ids)
+    )
+    prior_all = cleaned_df[
+        (cleaned_df['tourney_date'] < before_date) & player_mask
     ]
-    if prior.empty:
-        return {}
 
-    w     = prior['winner_id'].astype(int)
-    l     = prior['loser_id'].astype(int)
-    tmp   = prior.assign(a_id=np.minimum(w, l), b_id=np.maximum(w, l),
+    def _build(prior):
+        if prior.empty:
+            return {}
+        w   = prior['winner_id'].astype(int)
+        l   = prior['loser_id'].astype(int)
+        tmp = (
+            prior.assign(a_id=np.minimum(w, l), b_id=np.maximum(w, l),
                          a_won=(w < l).astype(int))
-    grp   = tmp.groupby(['a_id', 'b_id'])
-
-    a_wins_s    = grp['a_won'].sum()
-    count_s     = grp.size()
-    last_date_s = grp['tourney_date'].max()
-
-    return {
-        (int(idx[0]), int(idx[1])): {
-            'A_wins':    int(a_wins),
-            'B_wins':    int(count_s[idx] - a_wins),
-            'last_date': last_date_s[idx],
+            .sort_values('tourney_date')
+        )
+        grp       = tmp.groupby(['a_id', 'b_id'])
+        a_wins_g  = grp['a_won'].sum()
+        count_g   = grp.size()
+        last_dt_g = grp['tourney_date'].max()
+        last5_g   = grp['a_won'].apply(lambda s: s.tail(5))
+        last5_sum = last5_g.groupby(level=[0, 1]).sum()
+        last5_cnt = last5_g.groupby(level=[0, 1]).count()
+        return {
+            (int(idx[0]), int(idx[1])): {
+                'A_wins':     int(a_wins_g[idx]),
+                'B_wins':     int(count_g[idx] - a_wins_g[idx]),
+                'last_date':  last_dt_g[idx],
+                'A_last5':    int(last5_sum[idx]),
+                'last5_count': int(last5_cnt[idx]),
+            }
+            for idx in a_wins_g.index
         }
-        for idx, a_wins in a_wins_s.items()
-    }
+
+    prior_surface = prior_all[prior_all['surface'] == surface]
+    return _build(prior_surface), _build(prior_all)
 
 
 def _h2h_values(h2h: dict, a_id: int, b_id: int,
@@ -286,7 +300,8 @@ def _h2h_values(h2h: dict, a_id: int, b_id: int,
 
 def build_feature_row(
     a_id: int, b_id: int, round_label: str,
-    info: dict, player_attrs: dict, h2h: dict,
+    info: dict, player_attrs: dict,
+    h2h_surface: dict, h2h_overall: dict,
 ) -> list:
     """Build one feature vector in FEATURES column order.
 
@@ -298,13 +313,22 @@ def build_feature_row(
         round_label: Current round (e.g. 'QF').
         info: Tournament info dict with surface_enc and level_enc added.
         player_attrs: Combined attrs dict from merge_player_attrs().
-        h2h: H2H lookup from compute_h2h_lookup().
+        h2h_surface: Surface-specific H2H dict from compute_h2h_lookup()[0].
+        h2h_overall: Overall H2H dict from compute_h2h_lookup()[1].
     Returns:
         List of feature values matching FEATURES order.
     """
-    a        = player_attrs[a_id]
-    b        = player_attrs[b_id]
-    ah, bh, days = _h2h_values(h2h, a_id, b_id, info['date'])
+    a            = player_attrs[a_id]
+    b            = player_attrs[b_id]
+    ah, bh, days = _h2h_values(h2h_surface, a_id, b_id, info['date'])
+
+    rec_s = h2h_surface.get((a_id, b_id), {})
+    rec_o = h2h_overall.get((a_id, b_id), {})
+    a_l5s  = rec_s.get('A_last5', 0)
+    b_l5s  = rec_s.get('last5_count', 0) - a_l5s
+    a_l5o  = rec_o.get('A_last5', 0)
+    b_l5o  = rec_o.get('last5_count', 0) - a_l5o
+
     host_country = TOURNEY_COUNTRY.get(info['name'].strip().lower())
     a_home = 1 if (host_country and a.get('ioc') == host_country) else 0
     b_home = 1 if (host_country and b.get('ioc') == host_country) else 0
@@ -314,6 +338,8 @@ def build_feature_row(
         a['rank'], a['rank_pts'], a['seed'], a['age'], a['ht'], ah, a['hand_L'],
         b['rank'], b['rank_pts'], b['seed'], b['age'], b['ht'], bh, b['hand_L'],
         days,
+        a_l5o, a_l5s,
+        b_l5o, b_l5s,
         a['rank'] - b['rank'],
         a['rank_pts'] - b['rank_pts'],
         a.get('tourney_titles', 0),   a.get('tourney_win_rate', 0.0), a.get('tourney_matches', 0),
@@ -382,7 +408,8 @@ def simulate_once(tree: Match, player_attrs: dict, predict_fn, rng) -> list:
     return matches
 
 
-def _make_predict_fn(model, info: dict, player_attrs: dict, h2h: dict):
+def _make_predict_fn(model, info: dict, player_attrs: dict,
+                     h2h_surface: dict, h2h_overall: dict):
     """Return a memoised predict function scoped to this tournament.
 
     The cache avoids recomputing the same matchup in different rounds across
@@ -392,7 +419,8 @@ def _make_predict_fn(model, info: dict, player_attrs: dict, h2h: dict):
         model: Loaded XGBClassifier.
         info: Tournament info dict (must already contain surface_enc and level_enc).
         player_attrs: Combined player attrs dict.
-        h2h: H2H lookup dict.
+        h2h_surface: Surface-specific H2H lookup dict.
+        h2h_overall: Overall H2H lookup dict.
     Returns:
         Callable(a_id, b_id, round_label) → float.
     """
@@ -401,7 +429,10 @@ def _make_predict_fn(model, info: dict, player_attrs: dict, h2h: dict):
     def predict(a_id: int, b_id: int, round_label: str) -> float:
         key = (a_id, b_id, round_label)
         if key not in cache:
-            row = build_feature_row(a_id, b_id, round_label, info, player_attrs, h2h)
+            row = build_feature_row(
+                a_id, b_id, round_label, info, player_attrs,
+                h2h_surface, h2h_overall,
+            )
             X   = np.array(row, dtype=np.float32).reshape(1, -1)
             cache[key] = float(model.predict_proba(X)[0, 1])
         return cache[key]
@@ -574,11 +605,11 @@ def run_simulation(
         cleaned_df, tree.all_players(), info['surface'], info['date']
     )
     attrs = merge_player_attrs(draw_attrs, lagged, tourney_hist, form)
-    h2h     = compute_h2h_lookup(
+    h2h_surface, h2h_overall = compute_h2h_lookup(
         cleaned_df, tree.all_players(), info['surface'], info['date']
     )
 
-    predict_fn = _make_predict_fn(model, info, attrs, h2h)
+    predict_fn = _make_predict_fn(model, info, attrs, h2h_surface, h2h_overall)
     rng        = np.random.default_rng(42)
     sim_lists  = [simulate_once(tree, attrs, predict_fn, rng) for _ in range(n_sims)]
 

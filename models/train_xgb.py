@@ -48,6 +48,8 @@ FEATURES = [
     'B_rank', 'B_rank_pts', 'B_seed', 'B_age', 'B_ht', 'B_h2h', 'hand_B_L',
     # H2H context
     'days_since_h2h',
+    'A_h2h_last5', 'A_h2h_last5_surface',
+    'B_h2h_last5', 'B_h2h_last5_surface',
     # Matchup comparison (derived)
     'rank_diff', 'rank_pts_diff',
     # Tournament history

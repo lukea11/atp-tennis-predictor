@@ -50,6 +50,8 @@ PLAYER_ATTRS = {
     'win_streak':         ('winner_win_streak',         'loser_win_streak'),
     'win_streak_surface': ('winner_win_streak_surface', 'loser_win_streak_surface'),
     'wins_last5':         ('winner_wins_last5',          'loser_wins_last5'),
+    'h2h_last5':          ('winner_h2h_last5',          'loser_h2h_last5'),
+    'h2h_last5_surface':  ('winner_h2h_last5_surface',  'loser_h2h_last5_surface'),
 }
 
 

@@ -273,36 +273,38 @@ def _update_h2h(
     """Update H2H database with the result of a completed match.
 
     Args:
-        db: H2H state dict keyed by (player_A, player_B, surface).
-        key: (player_A, player_B, surface) tuple.
+        db: H2H state dict (surface-specific or overall).
+        key: Lookup key (tuple).
         winner_is_a: True if player_A (lower ID) won.
         match_date: Date of the match.
     """
     if key not in db:
-        db[key] = {"matches": 0, "A_wins": 0, "B_wins": 0, "last_date": None}
+        db[key] = {"matches": 0, "A_wins": 0, "B_wins": 0, "last_date": None,
+                   "last5": deque(maxlen=5)}
     rec = db[key]
     rec["matches"] += 1
     rec["A_wins" if winner_is_a else "B_wins"] += 1
     rec["last_date"] = match_date
+    rec["last5"].append(1 if winner_is_a else 0)
 
 
 # ── H2H main ──────────────────────────────────────────────────────────────────
 
 def compute_h2h(dfs: list) -> tuple:
-    """Compute time-aware, surface-specific H2H features for all matches.
+    """Compute time-aware H2H features (surface-specific and overall).
 
-    Records the H2H state *before* each match (true look-back, no leakage).
-    Matches are sorted by tourney_date then match_num so within-tournament
-    order is respected. H2H is surface-specific: only prior meetings on the
-    same surface count.
+    Records H2H state *before* each match (no leakage). Produces four H2H
+    columns: surface-specific win counts (existing) plus last-5 win counts
+    for both surface-specific and overall head-to-head records.
 
     Args:
         dfs: List of yearly cleaned match DataFrames.
     Returns:
-        Tuple (enriched_df, h2h_database_df).
-        enriched_df gains: winner_h2h, loser_h2h, days_since_h2h.
-        h2h_database_df columns:
-            player_A, player_B, surface, matches, A_wins, B_wins, last_match_date.
+        Tuple (enriched_df, h2h_db_surface, h2h_db_overall).
+        enriched_df gains: winner_h2h, loser_h2h, days_since_h2h,
+            winner/loser_h2h_last5, winner/loser_h2h_last5_surface.
+        Both DB DataFrames include a last5_sequence column (space-separated
+        "1 0 1…") and A_wins_last5 for easy future FIFO updates.
     """
     df = (
         pd.concat(dfs, ignore_index=True)
@@ -310,35 +312,77 @@ def compute_h2h(dfs: list) -> tuple:
         .sort_values(["tourney_date", "match_num"])
         .reset_index(drop=True)
     )
-    db = {}
+    db_surface = {}   # key: (a_id, b_id, surface)
+    db_overall = {}   # key: (a_id, b_id)
+
     w_h2h, l_h2h, days_list = [], [], []
+    w_last5s, l_last5s = [], []   # surface last5
+    w_last5o, l_last5o = [], []   # overall last5
 
     for _, row in df.iterrows():
         w_id, l_id = int(row["winner_id"]), int(row["loser_id"])
-        a_id, b_id = (w_id, l_id) if w_id < l_id else (l_id, w_id)
+        a_id, b_id = min(w_id, l_id), max(w_id, l_id)
         winner_is_a = w_id < l_id
-        key = (a_id, b_id, row["surface"])
-        date = row["tourney_date"]
+        key_s = (a_id, b_id, row["surface"])
+        key_o = (a_id, b_id)
+        date  = row["tourney_date"]
 
-        a_wins, b_wins, days = _lookup_h2h(db, key, date)
+        # Surface-specific H2H (cumulative wins + days)
+        a_wins, b_wins, days = _lookup_h2h(db_surface, key_s, date)
         w_h2h.append(a_wins if winner_is_a else b_wins)
         l_h2h.append(b_wins if winner_is_a else a_wins)
         days_list.append(days)
-        _update_h2h(db, key, winner_is_a, date)
 
-    df["winner_h2h"]    = w_h2h
-    df["loser_h2h"]     = l_h2h
-    df["days_since_h2h"] = days_list
+        # Surface last5 (from player perspective before this match)
+        rec_s = db_surface.get(key_s)
+        if rec_s:
+            a_l5s = int(sum(rec_s["last5"]))
+            b_l5s = len(rec_s["last5"]) - a_l5s
+        else:
+            a_l5s = b_l5s = 0
+        w_last5s.append(a_l5s if winner_is_a else b_l5s)
+        l_last5s.append(b_l5s if winner_is_a else a_l5s)
 
-    h2h_db = pd.DataFrame([
-        {
-            "player_A": k[0], "player_B": k[1], "surface": k[2],
-            "matches": v["matches"], "A_wins": v["A_wins"], "B_wins": v["B_wins"],
-            "last_match_date": v["last_date"],
-        }
-        for k, v in db.items()
-    ])
-    return df, h2h_db
+        # Overall last5
+        rec_o = db_overall.get(key_o)
+        if rec_o:
+            a_l5o = int(sum(rec_o["last5"]))
+            b_l5o = len(rec_o["last5"]) - a_l5o
+        else:
+            a_l5o = b_l5o = 0
+        w_last5o.append(a_l5o if winner_is_a else b_l5o)
+        l_last5o.append(b_l5o if winner_is_a else a_l5o)
+
+        _update_h2h(db_surface, key_s, winner_is_a, date)
+        _update_h2h(db_overall, key_o, winner_is_a, date)
+
+    df["winner_h2h"]               = w_h2h
+    df["loser_h2h"]                = l_h2h
+    df["days_since_h2h"]           = days_list
+    df["winner_h2h_last5"]         = w_last5o
+    df["loser_h2h_last5"]          = l_last5o
+    df["winner_h2h_last5_surface"] = w_last5s
+    df["loser_h2h_last5_surface"]  = l_last5s
+
+    def _build_db(db, has_surface):
+        rows = []
+        for k, v in db.items():
+            r = {
+                "player_A": k[0], "player_B": k[1],
+                "matches":  v["matches"],
+                "A_wins":   v["A_wins"], "B_wins": v["B_wins"],
+                "last_match_date":  v["last_date"],
+                "last5_sequence":   " ".join(str(x) for x in v["last5"]),
+                "A_wins_last5":     int(sum(v["last5"])),
+            }
+            if has_surface:
+                r["surface"] = k[2]
+            rows.append(r)
+        return pd.DataFrame(rows)
+
+    h2h_db_surface = _build_db(db_surface, has_surface=True)
+    h2h_db_overall = _build_db(db_overall, has_surface=False)
+    return df, h2h_db_surface, h2h_db_overall
 
 
 # ── Tournament history ────────────────────────────────────────────────────────
@@ -505,9 +549,9 @@ def add_features(dfs: list) -> tuple:
     Args:
         dfs: List of yearly cleaned match DataFrames (2018–2024).
     Returns:
-        Tuple (feature_df, h2h_database_df).
+        Tuple (feature_df, h2h_db_surface, h2h_db_overall).
     """
-    df, h2h_db = compute_h2h(dfs)
+    df, h2h_db_surface, h2h_db_overall = compute_h2h(dfs)
     df = compute_tourney_history(df)
     df = compute_home_advantage(df)
     df = compute_form_features(df)
@@ -516,24 +560,31 @@ def add_features(dfs: list) -> tuple:
     df = add_tiebreaks(df)
     df = add_sets_played(df)
     df = add_straight_sets(df)
-    return df, h2h_db
+    return df, h2h_db_surface, h2h_db_overall
 
 
-def save_features(df: pd.DataFrame, h2h_db: pd.DataFrame) -> None:
-    """Save feature DataFrame and H2H database to data/features/.
+def save_features(
+    df: pd.DataFrame,
+    h2h_db_surface: pd.DataFrame,
+    h2h_db_overall: pd.DataFrame,
+) -> None:
+    """Save feature DataFrame and both H2H databases to data/features/.
 
     Args:
         df: Enriched match DataFrame.
-        h2h_db: H2H database DataFrame.
+        h2h_db_surface: Surface-specific H2H database.
+        h2h_db_overall: Overall (all-surface) H2H database.
     """
     FEAT_DIR.mkdir(parents=True, exist_ok=True)
     df.to_csv(FEAT_DIR / "atp_features.csv", index=False)
-    h2h_db.to_csv(FEAT_DIR / "h2h_database.csv", index=False)
+    h2h_db_surface.to_csv(FEAT_DIR / "h2h_database.csv", index=False)
+    h2h_db_overall.to_csv(FEAT_DIR / "h2h_database_overall.csv", index=False)
 
 
 if __name__ == "__main__":
     clean = pd.read_csv(CLEAN_DIR / "atp_matches_cleaned.csv")
-    df, h2h_db = add_features([clean])
-    save_features(df, h2h_db)
+    df, h2h_db_surface, h2h_db_overall = add_features([clean])
+    save_features(df, h2h_db_surface, h2h_db_overall)
     print(f"Features: {df.shape[0]:,} rows, {df.shape[1]} columns")
-    print(f"H2H database: {len(h2h_db):,} player-pair-surface combinations")
+    print(f"H2H surface DB: {len(h2h_db_surface):,} player-pair-surface combinations")
+    print(f"H2H overall DB: {len(h2h_db_overall):,} player-pair combinations")
