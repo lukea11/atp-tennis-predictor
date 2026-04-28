@@ -5,20 +5,15 @@
 ---
 
 ## The Role of Claude AI Skills
-
-This project is built around the principle of **systematising the known so human judgment is reserved for the unknown.**
-
 Claude Skills are markdown instruction files that Claude Code references to produce consistent, standardised outputs for repeatable workflows — eliminating the need to re-explain processes and ensuring quality every time.
 
 ### Why skills and not just prompts?
 
 Without a skill:
-> "Hey Claude, check this data for me"  
-→ Different output every time, inconsistent quality
+> "Hey Claude, check this data for me" → Different output every time, inconsistent quality
 
 With a skill:
-> "Run the data check skill"  
-→ Same structured report every time, catches the same issues every time, in the same format every time
+> "Run the data check skill" → Same structured report every time, catches the same issues every time, in the same format every time
 
 ### Skills in this project
 
