@@ -14,7 +14,7 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 
 ---
 
-## Skills in this project
+## Summary of Skills in Project
 
 | # | Skill | Purpose |
 |---|-------|---------|
@@ -26,8 +26,7 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 
 ---
 
-<details>
-<summary><strong>1. Data Check</strong></summary>
+**1. Data Check**
 
 **First principles:** ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. Without an explicit check at ingestion, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. By the time the model produces a wrong prediction, the source of the error is buried 3 files deep.
 
@@ -48,12 +47,10 @@ Status: PASS
 ```
 
 </details>
-</details>
 
 ---
 
-<details>
-<summary><strong>2. Prediction Report</strong></summary>
+**2. Prediction Report**
 
 **First principles:** Feature importance numbers exist in `feature_importance.csv` — they are the ground truth. Without a skill, an LLM will pattern-match to what a "typical" feature importance report looks like and invent plausible-sounding weights and feature names that do not match the actual file. In a 69-feature model, this error is undetectable without cross-referencing the source.
 
@@ -77,12 +74,10 @@ Top 5 Signals:
 ```
 
 </details>
-</details>
 
 ---
 
-<details>
-<summary><strong>3. Player Tournament Prediction</strong></summary>
+**3. Player Tournament Prediction**
 
 **First principles:** A tournament bracket has hard structural constraints — each player occupies exactly one section of the draw relative to the target player, so the same opponent cannot appear in two different rounds. Without explicit rules, an LLM generates probability estimates and opponent lists that look realistic but violate these constraints. The skill also enforces a model cutoff rule: a tournament in year Y must use a model trained only on data through year Y−1, otherwise the simulation leaks future match outcomes into the prediction.
 
@@ -131,12 +126,10 @@ Djokovic — drops his tournament win ceiling to 11%.
 ```
 
 </details>
-</details>
 
 ---
 
-<details>
-<summary><strong>4. Refactoring</strong></summary>
+**4. Refactoring**
 
 **First principles:** In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files. Without a single source of truth, updates are missed: a feature added to `features.py` but not to `train_xgb.py` causes a silent NaN column; a column renamed in `cleaning.py` but not in `build_dataset.py` breaks the join with no error until model training. The skill enforces one rule: every shared constant lives in one place so adding a feature touches one file.
 
@@ -169,12 +162,10 @@ What this enables:
 ```
 
 </details>
-</details>
 
 ---
 
-<details>
-<summary><strong>5. README Update</strong></summary>
+**5. README Update**
 
 **First principles:** Without a prescribed structure, README content drifts toward generic project conventions — setup guides, architecture diagrams, hyperparameter tables — none of which communicate what is actually distinctive about the project. The skill defines a fixed template so each invocation produces the same sections in the same order, and mandates that technical details are excluded unless they directly explain a skill.
 
@@ -184,18 +175,18 @@ What this enables:
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: readme-update skill updated with plain numbered TOC
-               and full README structure template
+Invoked after: readme-update skill updated — skills always visible,
+               only sample outputs in dropdowns, plain numbered table
 
 Changes made:
-  - Table of contents converted to plain numbered list (no hyperlinks)
-  - Each skill section in a numbered <details> dropdown
-  - Sample output nested inside each skill dropdown
-  - "What are Claude Skills?" kept as always-visible plain text
+  - Removed per-skill <details> wrappers — all skill content visible
+  - Skill headers changed to bold numbered text
+  - Table title changed to "Summary of Skills in Project"
+  - Table kept as plain text (no hyperlinks)
+  - Sample output dropdowns retained
 
 Skills section verified: all 5 skills present with first principles,
-invoke command, and sample output — TOC visible, content collapsed.
+invoke command, and sample output dropdown.
 ```
 
-</details>
 </details>
