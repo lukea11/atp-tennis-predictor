@@ -37,7 +37,9 @@ The skill enforces a fixed contract: compare every column name and dtype against
 
 **Invoke:** `run the data check skill`
 
-**Sample output:**
+<details>
+<summary><strong>Sample output</strong></summary>
+
 ```
 2024 ATP Matches Data Check
 
@@ -49,6 +51,8 @@ Data type changes: None
 Status: PASS
 ```
 
+</details>
+
 ---
 
 ## Prediction Report
@@ -59,7 +63,9 @@ The skill reads directly from `feature_importance.csv`, computes each feature's 
 
 **Invoke:** `invoke the prediction report skill`
 
-**Sample output:**
+<details>
+<summary><strong>Sample output</strong></summary>
+
 ```
 ATP Match Prediction — Signal Report
 
@@ -74,6 +80,8 @@ Top 5 Signals:
  5. completed_winrate_A    2.07%  — Player A Completed-Match Win Rate
 ```
 
+</details>
+
 ---
 
 ## Player Tournament Prediction
@@ -82,7 +90,9 @@ Top 5 Signals:
 
 **Invoke:** Natural language trigger — e.g. `Medvedev Australian Open 2024` or `simulate Djokovic Roland Garros 2023`
 
-**Sample output:**
+<details>
+<summary><strong>Sample output</strong></summary>
+
 ```
 Daniil Medvedev: Australian Open 2024 Chances
 5000 simulations · Hard · Grand Slam
@@ -122,6 +132,8 @@ win probabilities in early rounds, but the Final draw — likely
 Djokovic — drops his tournament win ceiling to 11%.
 ```
 
+</details>
+
 ---
 
 ## Refactoring
@@ -130,7 +142,9 @@ Djokovic — drops his tournament win ceiling to 11%.
 
 **Invoke:** `invoke the refactoring skill`
 
-**Sample output:**
+<details>
+<summary><strong>Sample output</strong></summary>
+
 ```
 Refactoring Report
 
@@ -154,6 +168,8 @@ What this enables:
 - Adding a new H2H feature: extend the deque or add a new column to _update_h2h only
 ```
 
+</details>
+
 ---
 
 ## README Update
@@ -162,7 +178,9 @@ What this enables:
 
 **Invoke:** `invoke the readme update skill`
 
-**Sample output:**
+<details>
+<summary><strong>Sample output</strong></summary>
+
 ```
 Invoked after: H2H last-5 feature addition, model retrain, README
                refocus to skills-only content
@@ -180,3 +198,5 @@ Changes made:
 Skills section verified: all 5 skills present with first principles,
 invoke command, and real sample output.
 ```
+
+</details>

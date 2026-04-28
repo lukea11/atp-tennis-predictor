@@ -8,11 +8,25 @@ no setup instructions.
 ## Rules
 - Every skill must explain the first principles thinking behind it
 - Every skill must show the command to invoke it
-- Every skill must show a real sample output
+- Every skill must show a real sample output inside a `<details>` dropdown
 - Always frame skills as guardrails against LLM pattern-matching
 - Never include project technical details unless directly 
   relevant to explaining a skill
 - Do not talk about anything else other than skills, only focus on skills, so no need to talk about pipelines, project structure, no hyperparameter talk, no need feature categories, no need top features
+
+## Sample Output Format
+Wrap every sample output in a `<details>` dropdown:
+
+```
+<details>
+<summary><strong>Sample output</strong></summary>
+
+\`\`\`
+...output here...
+\`\`\`
+
+</details>
+```
 
 ---
 
