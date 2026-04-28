@@ -90,7 +90,7 @@ Daniil Medvedev: Australian Open 2024 Chances
 ───────────────────────────────
 Possible Path
 ───────────────────────────────
-Round 128 : Terence Atmane                                          P(win): 87%
+Round 128 : Terence Atmane                                         P(win): 87%
 Round 64  : Emil Ruusuvuori (59%) or Patrick Kypson (28%)          P(win): 84%
 Round 32  : Felix Auger-Aliassime (34%) or Hugo Grenier (17%)      P(win): 82%
 Round 16  : Grigor Dimitrov (22%) or Alejandro Davidovich Fokina   P(win): 79%
