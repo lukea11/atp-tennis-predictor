@@ -55,6 +55,9 @@ FEATURES = [
     'B_tourney_titles', 'B_tourney_win_rate', 'B_tourney_matches',
     # Home advantage
     'A_is_home', 'B_is_home',
+    # Form & momentum (match-time)
+    'A_win_streak', 'A_win_streak_surface', 'A_wins_last5',
+    'B_win_streak', 'B_win_streak_surface', 'B_wins_last5',
     # Player A — lagged surface stats
     'win_rate_A', 'completed_winrate_A', 'strsets_rate_A', 'tiebreaks_winrate_A',
     'rank_improvement_A', 'injured_during_swing_A', 'matches_played_A',

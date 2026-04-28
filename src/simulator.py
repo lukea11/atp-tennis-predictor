@@ -6,7 +6,7 @@ import sys
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from collections import Counter
+from collections import Counter, deque
 from difflib import get_close_matches
 from pathlib import Path
 
@@ -34,6 +34,8 @@ FEATURES = [
     'A_tourney_titles', 'A_tourney_win_rate', 'A_tourney_matches',
     'B_tourney_titles', 'B_tourney_win_rate', 'B_tourney_matches',
     'A_is_home', 'B_is_home',
+    'A_win_streak', 'A_win_streak_surface', 'A_wins_last5',
+    'B_win_streak', 'B_win_streak_surface', 'B_wins_last5',
     'win_rate_A', 'completed_winrate_A', 'strsets_rate_A', 'tiebreaks_winrate_A',
     'rank_improvement_A', 'injured_during_swing_A', 'matches_played_A',
     'ace_rate_A', 'df_rate_A', 'first_serve_pct_A', 'first_serve_win_pct_A',
@@ -83,14 +85,15 @@ def build_lagged_stats(agg_df: pd.DataFrame, year: int, surface: str) -> dict:
 
 
 def merge_player_attrs(draw_attrs: dict, lagged: dict,
-                       tourney_history: dict = None) -> dict:
-    """Combine draw-time attributes with lagged stats and tournament history.
+                       tourney_history: dict = None,
+                       form: dict = None) -> dict:
+    """Combine draw-time attributes with lagged stats, tournament history, and form.
 
     Args:
         draw_attrs: From extract_player_attrs() — rank, seed, ht, etc.
         lagged: From build_lagged_stats() — win_rate, ace_rate, etc.
-        tourney_history: From compute_tourney_history_lookup() — optional;
-            keys tourney_titles, tourney_wins, tourney_matches per player.
+        tourney_history: From compute_tourney_history_lookup() — optional.
+        form: From compute_form_lookup() — optional; win_streak, etc.
     Returns:
         Merged dict: {player_id: combined_feature_attrs}.
     """
@@ -106,6 +109,10 @@ def merge_player_attrs(draw_attrs: dict, lagged: dict,
         merged[pid]['tourney_titles']   = th.get('tourney_titles', 0)
         merged[pid]['tourney_matches']  = matches
         merged[pid]['tourney_win_rate'] = (wins + p * 0.5) / (matches + p)
+        fm = (form or {}).get(pid, {})
+        merged[pid]['win_streak']         = fm.get('win_streak',         0)
+        merged[pid]['win_streak_surface'] = fm.get('win_streak_surface', 0)
+        merged[pid]['wins_last5']         = fm.get('wins_last5',         0)
     return merged
 
 
@@ -142,6 +149,68 @@ def compute_tourney_history_lookup(
             db[w_id]['tourney_titles'] += 1
 
     return {pid: db[pid] for pid in player_ids if pid in db}
+
+
+def compute_form_lookup(
+    cleaned_df: pd.DataFrame, player_ids: set,
+    surface: str, before_date: pd.Timestamp,
+) -> dict:
+    """Compute current form state for each draw player entering the tournament.
+
+    Iterates all matches before before_date in chronological order to build
+    the exact rolling state each player carries into the tournament: overall
+    win streak, surface-specific streak (resets on surface change or loss),
+    and wins from their last 5 matches.
+
+    Args:
+        cleaned_df: Full cleaned match DataFrame.
+        player_ids: Set of player IDs in the tournament draw.
+        surface: Tournament surface (used to evaluate surface streak).
+        before_date: Tournament start date (exclusive cutoff).
+    Returns:
+        Dict: {player_id: {win_streak, win_streak_surface, wins_last5}}.
+        Players with no prior match history get zeros.
+    """
+    prior = cleaned_df[cleaned_df['tourney_date'] < before_date].sort_values(
+        ['tourney_date', 'match_num']
+    )
+
+    db: dict = {}
+    for _, row in prior.iterrows():
+        w_id = int(row['winner_id'])
+        l_id = int(row['loser_id'])
+        s    = row['surface']
+
+        for pid in (w_id, l_id):
+            if pid not in db:
+                db[pid] = {'streak': 0, 'last_surface': None,
+                           'streak_surface': 0, 'last5': deque(maxlen=5)}
+
+        ws = db[w_id]
+        ws['streak'] += 1
+        ws['streak_surface'] = (ws['streak_surface'] + 1) if ws['last_surface'] == s else 1
+        ws['last_surface'] = s
+        ws['last5'].append(1)
+
+        ls = db[l_id]
+        ls['streak']         = 0
+        ls['streak_surface'] = 0
+        ls['last_surface']   = s
+        ls['last5'].append(0)
+
+    result = {}
+    for pid in player_ids:
+        state = db.get(pid)
+        if state:
+            streak_s = state['streak_surface'] if state['last_surface'] == surface else 0
+            result[pid] = {
+                'win_streak':         state['streak'],
+                'win_streak_surface': streak_s,
+                'wins_last5':         sum(state['last5']),
+            }
+        else:
+            result[pid] = {'win_streak': 0, 'win_streak_surface': 0, 'wins_last5': 0}
+    return result
 
 
 # ── H2H lookup ─────────────────────────────────────────────────────────────────
@@ -250,6 +319,8 @@ def build_feature_row(
         a.get('tourney_titles', 0),   a.get('tourney_win_rate', 0.0), a.get('tourney_matches', 0),
         b.get('tourney_titles', 0),   b.get('tourney_win_rate', 0.0), b.get('tourney_matches', 0),
         a_home, b_home,
+        a.get('win_streak', 0), a.get('win_streak_surface', 0), a.get('wins_last5', 0),
+        b.get('win_streak', 0), b.get('win_streak_surface', 0), b.get('wins_last5', 0),
     ]
     for col in LAGGED_STAT_COLS:
         row.append(a.get(col, np.nan))
@@ -499,7 +570,10 @@ def run_simulation(
     tourney_hist = compute_tourney_history_lookup(
         cleaned_df, tree.all_players(), info['name'], info['date']
     )
-    attrs   = merge_player_attrs(draw_attrs, lagged, tourney_hist)
+    form  = compute_form_lookup(
+        cleaned_df, tree.all_players(), info['surface'], info['date']
+    )
+    attrs = merge_player_attrs(draw_attrs, lagged, tourney_hist, form)
     h2h     = compute_h2h_lookup(
         cleaned_df, tree.all_players(), info['surface'], info['date']
     )

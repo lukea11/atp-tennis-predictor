@@ -1,4 +1,5 @@
 import re
+from collections import deque
 import pandas as pd
 from pathlib import Path
 
@@ -419,13 +420,87 @@ def compute_home_advantage(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ── Form / momentum ───────────────────────────────────────────────────────────
+
+def compute_form_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add rolling pre-match form features for both players (no leakage).
+
+    Tracks three signals for each player before each match:
+      win_streak         — overall consecutive wins (resets on any loss)
+      win_streak_surface — consecutive wins on this surface (resets on loss
+                           OR when the player switches to a different surface)
+      wins_last5         — wins in last 5 matches regardless of surface (0–5)
+
+    Requires df sorted by (tourney_date, match_num) — already guaranteed
+    when called after compute_h2h.
+
+    Args:
+        df: Match DataFrame sorted by tourney_date, match_num.
+    Returns:
+        df copy with 6 new columns:
+            winner/loser × win_streak / win_streak_surface / wins_last5.
+    """
+    db = {}   # {player_id: {streak, last_surface, streak_surface, last5}}
+
+    w_streak,   l_streak   = [], []
+    w_streak_s, l_streak_s = [], []
+    w_last5,    l_last5    = [], []
+
+    for _, row in df.iterrows():
+        w_id    = int(row['winner_id'])
+        l_id    = int(row['loser_id'])
+        surface = row['surface']
+
+        for pid in (w_id, l_id):
+            if pid not in db:
+                db[pid] = {
+                    'streak':         0,
+                    'last_surface':   None,
+                    'streak_surface': 0,
+                    'last5':          deque(maxlen=5),
+                }
+
+        ws = db[w_id]
+        ls = db[l_id]
+
+        # Record pre-match state (leakage-free)
+        w_streak.append(ws['streak'])
+        l_streak.append(ls['streak'])
+        w_streak_s.append(ws['streak_surface'] if ws['last_surface'] == surface else 0)
+        l_streak_s.append(ls['streak_surface'] if ls['last_surface'] == surface else 0)
+        w_last5.append(sum(ws['last5']))
+        l_last5.append(sum(ls['last5']))
+
+        # Update winner
+        ws['streak'] += 1
+        ws['streak_surface'] = (ws['streak_surface'] + 1) if ws['last_surface'] == surface else 1
+        ws['last_surface'] = surface
+        ws['last5'].append(1)
+
+        # Update loser (loss resets both streaks; surface still recorded)
+        ls['streak']         = 0
+        ls['streak_surface'] = 0
+        ls['last_surface']   = surface
+        ls['last5'].append(0)
+
+    df = df.copy()
+    df['winner_win_streak']         = w_streak
+    df['loser_win_streak']          = l_streak
+    df['winner_win_streak_surface'] = w_streak_s
+    df['loser_win_streak_surface']  = l_streak_s
+    df['winner_wins_last5']         = w_last5
+    df['loser_wins_last5']          = l_last5
+    return df
+
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 def add_features(dfs: list) -> tuple:
     """Run all feature engineering steps on a list of yearly DataFrames.
 
-    Order: H2H → tourney history → home advantage → loser_retired
-           → service/return games → tiebreaks → sets played → straight sets.
+    Order: H2H → tourney history → home advantage → form features
+           → loser_retired → service/return games → tiebreaks → sets played
+           → straight sets.
 
     Args:
         dfs: List of yearly cleaned match DataFrames (2018–2024).
@@ -435,6 +510,7 @@ def add_features(dfs: list) -> tuple:
     df, h2h_db = compute_h2h(dfs)
     df = compute_tourney_history(df)
     df = compute_home_advantage(df)
+    df = compute_form_features(df)
     df = add_loser_retired(df)
     df = add_service_return_games(df)
     df = add_tiebreaks(df)
