@@ -123,9 +123,24 @@ directly.]
   - `rtn_win_pct` (return-game win rate)
   - `bp_save_pct` (break-point save rate)
   - `win_rate` (surface win rate)
+  - `tourney_titles` (prior titles at this tournament)
+  - `tourney_win_rate` (historical win rate at this tournament)
   - Player rank / rank points
 - Retrieve feature values from the simulation's `draw_attrs` and `lagged_stats`
   for the specific tournament year/surface.
+
+## Tournament history data limitation
+Tournament history features (`tourney_titles`, `tourney_win_rate`, `tourney_matches`)
+are computed from match data starting in **2018 only**. Titles won before 2018 are
+invisible to the model. When citing these features, always note the 2018 cutoff:
+
+  Example: "Djokovic's tournament title count (tourney_titles) of 4 at Wimbledon
+  reflects his wins in 2018, 2019, 2021, and 2022 — the model does not see his
+  earlier titles (2011, 2014, 2015). His true total entering 2023 was 7."
+
+This matters most for legends with long careers (Djokovic, Federer, Nadal, Serena).
+Always cross-reference against the player's actual career record when writing the
+Toughest Round or Summary commentary.
 
 ## Maximum round for a tournament
 Determine the correct round labels from the draw size:

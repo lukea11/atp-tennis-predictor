@@ -27,6 +27,17 @@ Each row: Feature code | Long name | Definition | Why it matters
 | rank_pts_diff | Ranking Points Gap | Player A's ranking points minus Player B's ranking points | The single most predictive signal — the relative points gap directly measures the quality difference; what matters is not a player's absolute points, but how many more they have than their opponent |
 | rank_diff | ATP Ranking Gap | Player A's ATP ranking minus Player B's ranking (positive = B ranked higher/better) | The relative ranking gap is more predictive than either player's absolute rank alone — what matters is not that you're ranked 50, but that you're ranked 50 vs an opponent at 120 |
 
+### Tournament History (cumulative from 2018 — data limitation note)
+**Important:** these features are computed from match data starting in 2018. Titles won before 2018 are not visible to the model. When citing these features, always state the 2018 cutoff so the reader knows the count is partial for players with long careers.
+| Feature | Long Name | Definition | Why It Matters |
+|---------|-----------|------------|----------------|
+| A_tourney_titles | Player A Tournament Titles | Number of times Player A has won this specific tournament (2018 onward) | The single clearest signal of venue-specific mastery — a player who has lifted the trophy here multiple times knows how to manage its unique conditions, crowd, and pressure across two weeks |
+| B_tourney_titles | Player B Tournament Titles | Same as A_tourney_titles for the opponent | A player with zero titles at a major is in unknown territory for the final stretch, regardless of their ranking |
+| A_tourney_win_rate | Player A Tournament Win Rate | Player A's match win rate at this specific tournament (2018 onward) | Deeper than titles alone — a player who consistently reaches the quarters without winning still has a high win rate that reflects genuine venue affinity |
+| B_tourney_win_rate | Player B Tournament Win Rate | Same as A_tourney_win_rate for the opponent | Useful for younger players who haven't won a title yet but consistently go deep |
+| A_tourney_matches | Player A Tournament Experience | Total matches Player A has played at this tournament (2018 onward) | Experience at the venue — a player with 40+ prior matches here has handled the scheduling, the courts, and the crowd pressure many times before |
+| B_tourney_matches | Player B Tournament Experience | Same as A_tourney_matches for the opponent | Particularly relevant for first-time major participants who face the logistical and psychological novelty of a Grand Slam for the first time |
+
 ### Rankings & Seeding
 | Feature | Long Name | Definition | Why It Matters |
 |---------|-----------|------------|----------------|
