@@ -66,7 +66,7 @@ def fill_entry(df: pd.DataFrame) -> pd.DataFrame:
 
     - Seeded players (seed is not NaN) with no entry → 'seeded'
     - Unseeded players (seed is NaN) with no entry → 'unseeded'
-    - Existing non-null entries (Q, WC, LL, PR, SE, Alt) are preserved.
+    - 'Alt' normalised to 'ALT'; all other existing entries preserved.
 
     Args:
         df: Match DataFrame with coerced seed columns.
@@ -80,6 +80,7 @@ def fill_entry(df: pd.DataFrame) -> pd.DataFrame:
         missing_entry = df[entry_col].isna()
         df.loc[is_seeded & missing_entry, entry_col] = "seeded"
         df.loc[~is_seeded & missing_entry, entry_col] = "unseeded"
+        df[entry_col] = df[entry_col].replace("Alt", "ALT")
     return df
 
 
