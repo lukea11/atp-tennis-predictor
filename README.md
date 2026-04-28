@@ -19,17 +19,18 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 
 ## Skills in this project
 
-| Skill | Purpose |
-|-------|---------|
-| [Data Check](#data-check) | Validate incoming ATP CSV data before cleaning |
-| [Prediction Report](#prediction-report) | Generate a signal report from feature importance scores |
-| [Player Tournament Prediction](#player-tournament-prediction) | Run a full Monte Carlo simulation for a player in a tournament |
-| [Refactoring](#refactoring) | Enforce loose coupling and single-source-of-truth |
-| [README Update](#readme-update) | Maintain this document to a consistent standard |
+| # | Skill | Purpose |
+|---|-------|---------|
+| 1 | [Data Check](#data-check) | Validate incoming ATP CSV data before cleaning |
+| 2 | [Prediction Report](#prediction-report) | Generate a signal report from feature importance scores |
+| 3 | [Player Tournament Prediction](#player-tournament-prediction) | Run a full Monte Carlo simulation for a player in a tournament |
+| 4 | [Refactoring](#refactoring) | Enforce loose coupling and single-source-of-truth |
+| 5 | [README Update](#readme-update) | Maintain this document to a consistent standard |
 
 ---
 
-## Data Check
+<details>
+<summary><strong>1. Data Check</strong></summary>
 
 **First principles:** ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. Without an explicit check at ingestion, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. By the time the model produces a wrong prediction, the source of the error is buried 3 files deep.
 
@@ -53,9 +54,12 @@ Status: PASS
 
 </details>
 
+</details>
+
 ---
 
-## Prediction Report
+<details>
+<summary><strong>2. Prediction Report</strong></summary>
 
 **First principles:** Feature importance numbers exist in `feature_importance.csv` — they are the ground truth. Without a skill, an LLM will pattern-match to what a "typical" feature importance report looks like and invent plausible-sounding weights and feature names that do not match the actual file. In a 69-feature model, this error is undetectable without cross-referencing the source.
 
@@ -82,9 +86,12 @@ Top 5 Signals:
 
 </details>
 
+</details>
+
 ---
 
-## Player Tournament Prediction
+<details>
+<summary><strong>3. Player Tournament Prediction</strong></summary>
 
 **First principles:** A tournament bracket has hard structural constraints — each player occupies exactly one section of the draw relative to the target player, so the same opponent cannot appear in two different rounds. Without explicit rules, an LLM generates probability estimates and opponent lists that look realistic but violate these constraints. The skill also enforces a model cutoff rule: a tournament in year Y must use a model trained only on data through year Y−1, otherwise the simulation leaks future match outcomes into the prediction.
 
@@ -134,9 +141,12 @@ Djokovic — drops his tournament win ceiling to 11%.
 
 </details>
 
+</details>
+
 ---
 
-## Refactoring
+<details>
+<summary><strong>4. Refactoring</strong></summary>
 
 **First principles:** In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files. Without a single source of truth, updates are missed: a feature added to `features.py` but not to `train_xgb.py` causes a silent NaN column; a column renamed in `cleaning.py` but not in `build_dataset.py` breaks the join with no error until model training. The skill enforces one rule: every shared constant lives in one place so adding a feature touches one file.
 
@@ -170,9 +180,12 @@ What this enables:
 
 </details>
 
+</details>
+
 ---
 
-## README Update
+<details>
+<summary><strong>5. README Update</strong></summary>
 
 **First principles:** Without a prescribed structure, README content drifts toward generic project conventions — setup guides, architecture diagrams, hyperparameter tables — none of which communicate what is actually distinctive about the project. The skill defines a fixed template so each invocation produces the same sections in the same order, and mandates that technical details are excluded unless they directly explain a skill.
 
@@ -182,21 +195,19 @@ What this enables:
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: H2H last-5 feature addition, model retrain, README
-               refocus to skills-only content
+Invoked after: readme-update skill updated with per-skill dropdowns
+               and visible table of contents
 
 Changes made:
-  - Removed pipeline diagram, feature categories, model metrics,
-    usage commands, and project structure tree
-  - Added "What are Claude Skills?" framing section with
-    guardrail-against-pattern-matching explanation
-  - Added first principles reasoning section to each skill
-  - Updated Player Tournament Prediction sample (no duplicate
-    players across rounds — bracket structure enforced)
-  - Added Refactoring and README Update skill sections
+  - Table of contents kept always visible with skill numbers
+  - Each skill section wrapped in a numbered <details> dropdown
+  - Sample output remains as nested <details> inside each skill
+  - "What are Claude Skills?" section kept as plain visible text
 
 Skills section verified: all 5 skills present with first principles,
-invoke command, and real sample output.
+invoke command, and sample output — TOC visible, content collapsed.
 ```
+
+</details>
 
 </details>
