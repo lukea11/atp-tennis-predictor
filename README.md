@@ -1,0 +1,284 @@
+# ATP Tennis Predictor
+
+> Predicts ATP match win probabilities and simulates full tournament draws using XGBoost trained on 2018–2024 historical match data.
+
+---
+
+## The Role of Claude AI Skills
+
+This project is built around the principle of **systematising the known so human judgment is reserved for the unknown.**
+
+Claude Skills are markdown instruction files that Claude Code references to produce consistent, standardised outputs for repeatable workflows — eliminating the need to re-explain processes and ensuring quality every time.
+
+### Why skills and not just prompts?
+
+Without a skill:
+> "Hey Claude, check this data for me"  
+→ Different output every time, inconsistent quality
+
+With a skill:
+> "Run the data check skill"  
+→ Same structured report every time, catches the same issues every time, in the same format every time
+
+### Skills in this project
+
+| Skill | File | Purpose |
+|-------|------|---------|
+| Data Check | `.claude/skills/data-check.md` | Validate incoming ATP CSV data before cleaning — catches missing columns, dtype changes, and data quality issues |
+| Prediction Report | `.claude/skills/prediction-report.md` | Generate a signal report from `feature_importance.csv` showing each feature's decision weight and what it means in tennis terms |
+| Player Tournament Prediction | `.claude/skills/player-tournament-prediction-report.md` | Run a full Monte Carlo simulation for a player in a specific tournament and produce a structured prediction report with round-by-round probabilities |
+| Refactoring | `.claude/skills/refactoring.md` | Enforce loose coupling and single-source-of-truth — ensures adding a new feature only requires touching one place |
+| README Update | `.claude/skills/readme-update.md` | Maintain this document to a consistent standard after any meaningful project change |
+
+### Sample skill outputs
+
+<details>
+<summary><strong>Data Check</strong> — run when a new year's CSV is loaded</summary>
+
+```
+2024 ATP Matches Data Check
+
+Columns received: 49
+New columns:      None
+Missing columns:  None
+Data type changes: None
+
+Status: PASS
+```
+</details>
+
+<details>
+<summary><strong>Player Tournament Prediction</strong> — "Simulate Medvedev Australian Open 2024"</summary>
+
+```
+Daniil Medvedev: Australian Open 2024 Chances
+5000 simulations · Hard · Grand Slam
+
+───────────────────────────────
+Possible Path
+───────────────────────────────
+Round 128 : Rinky Hijikata                                P(win): 98%
+Round 64  : Marcos Giron (14%) or Jiri Lehecka (12%)     P(reach): 97%
+Round 32  : Sebastian Korda (18%) or Lehecka (16%)       P(reach): 91%
+Round 16  : Andrey Rublev (31%) or Karen Khachanov (22%) P(reach): 77%
+QF        : Carlos Alcaraz (28%) or Hubert Hurkacz (18%) P(reach): 58%
+SF        : Novak Djokovic (41%) or Alcaraz (23%)        P(reach): 35%
+Final     : Djokovic (52%) or Alcaraz (24%)              P(reach): 22%
+
+───────────────────────────────
+Toughest Round
+───────────────────────────────
+The toughest expected obstacle is the SF against Novak Djokovic.
+Medvedev's service hold rate (sv_gms_won_pct) of 89% on hard courts
+vs Djokovic's break-point save rate (bp_save_pct) of 71% sets up a
+close contest — but Djokovic's completed-match win rate of 83% on
+hard is the bar Medvedev must clear.
+
+───────────────────────────────
+Summary
+───────────────────────────────
+Expected exit     : SF (last round with P(reach) ≥ 25% — P(reach) = 35%)
+P(win SF)         : 63%
+Toughest match    : SF vs Djokovic (37% win probability)
+P(win tournament) : 22%
+
+Medvedev enters as a legitimate contender on his best surface, with
+a 22% tournament win probability that reflects both his serve dominance
+and the presence of Djokovic in the draw. His service hold rate
+(sv_gms_won_pct) of 89% on hard courts makes him dangerous in any
+match, but his overall H2H last-5 record (h2h_last5) of 1-4 against
+Djokovic is the primary drag on his ceiling.
+```
+</details>
+
+<details>
+<summary><strong>Prediction Report</strong> — top signals after training</summary>
+
+```
+# ATP Match Prediction — Signal Report
+
+Model: XGBoost | decay_rate=1.0 | max_depth=4 | min_child_weight=5
+Val AUC (2024): 0.7126 | Val Accuracy: 63.98% | Best iteration: varies
+
+Top 5 Signals:
+ 1. rank_pts_diff         10.3%  — Ranking Points Gap
+ 2. rank_diff              4.7%  — ATP Ranking Gap
+ 3. A_rank_pts             2.4%  — Player A Ranking Points
+ 4. sv_gms_won_pct_A       2.2%  — Player A Service Hold Rate
+ 5. completed_winrate_A    2.1%  — Player A Completed-Match Win Rate
+```
+</details>
+
+---
+
+## Pipeline
+
+```
+data/raw/                       ← ATP match CSVs (2018–2024)
+    │
+    ▼
+src/cleaning.py                 → data/cleaned/atp_matches_cleaned.csv
+    │   Remove Davis Cup, fix dtypes, standardise columns
+    ▼
+src/features.py                 → data/features/atp_features.csv
+    │   H2H (surface + overall + last-5), tourney history,
+    │   home advantage, form/momentum, serve/return stats
+    ▼
+src/aggregation.py              → data/aggregated/player_surface_year_stats.csv
+    │   Per-player, per-surface, per-year stat aggregation
+    ▼
+src/build_dataset.py            → data/processed/model_dataset.csv
+    │   Lag features by 1 year, assign player A/B (lower ID = A),
+    │   Bayesian-smooth tournament win rates, encode surface/round
+    ▼
+models/train_xgb.py             → models/xgb_model.json
+    │   XGBoost grid search with exponential recency decay weights
+    ▼
+src/simulator.py                ← Monte Carlo tournament simulation
+```
+
+### Data rules (always enforced)
+- Davis Cup matches excluded — no ranking points, causes NaN cascades
+- RET / W/O matches excluded from serve & return stat calculations
+- Train/val split is always time-based — never random
+- All rolling features computed as pre-match state (zero leakage)
+- Player A is always the lower ATP player ID; H2H database uses the same convention
+
+---
+
+## Features (69 total)
+
+All lagged stats use each player's prior-year same-surface stats to prevent data leakage.
+
+### Top 10 by decision weight (share of model's total information gain)
+
+| Rank | Feature | Decision Weight | What it measures |
+|------|---------|----------------|-----------------|
+| 1 | `rank_pts_diff` | 10.3% | Ranking points gap between the two players |
+| 2 | `rank_diff` | 4.7% | ATP ranking gap |
+| 3 | `A_rank_pts` | 2.4% | Player A's rolling 12-month ranking points |
+| 4 | `sv_gms_won_pct_A` | 2.2% | Player A service hold rate (prior year, same surface) |
+| 5 | `completed_winrate_A` | 2.1% | Player A win rate in fully completed matches |
+| 6 | `win_rate_A` | 2.0% | Player A overall surface win rate (prior year) |
+| 7 | `B_h2h_last5` | 2.0% | Player B wins in last 5 H2H meetings (any surface) |
+| 8 | `B_wins_last5` | 1.9% | Player B wins in last 5 matches overall |
+| 9 | `matches_played_B` | 1.8% | Player B matches played on this surface (prior year) |
+| 10 | `A_tourney_win_rate` | 1.8% | Player A historical win rate at this tournament (2018+) |
+
+### Feature categories
+
+| Category | Features | Notes |
+|----------|----------|-------|
+| Matchup comparison | `rank_diff`, `rank_pts_diff` | Derived from player A/B ranks at match time |
+| Rankings & seeding | `A/B_rank`, `A/B_rank_pts`, `A/B_seed` | Match-time values from the draw |
+| H2H — cumulative | `A/B_h2h`, `days_since_h2h` | Surface-specific prior win counts |
+| H2H — last 5 | `A/B_h2h_last5`, `A/B_h2h_last5_surface` | Overall and surface-specific last-5 win counts; raw FIFO sequence stored in `h2h_database.csv` for easy future updates |
+| Form & momentum | `A/B_win_streak`, `A/B_win_streak_surface`, `A/B_wins_last5` | Pre-match rolling state; surface streak resets on loss or surface change |
+| Tournament history | `A/B_tourney_titles`, `A/B_tourney_win_rate`, `A/B_tourney_matches` | Bayesian-smoothed win rate (prior = 3 pseudo-matches); data from 2018 only — titles before 2018 are not visible to the model |
+| Home advantage | `A/B_is_home` | Player IOC country code vs tournament host country |
+| Serve performance | ace rate, df rate, 1st serve %, 1st/2nd serve win %, bp save %, sv games won % | Prior year, same surface |
+| Return performance | return game win %, tiebreak win % | Prior year, same surface |
+| Win rates | `win_rate`, `completed_winrate`, `strsets_rate` | Prior year, same surface |
+| Health / trajectory | `rank_improvement`, `injured_during_swing`, `matches_played` | Prior year, same surface |
+| Match context | `surface_enc`, `tourney_level_enc`, `round_ord`, `best_of` | Encoded at match time |
+| Player profile | `A/B_age`, `A/B_ht`, `hand_A/B_L` | From the draw |
+
+---
+
+## Model
+
+**Algorithm:** XGBoost binary classification — predicts P(player A wins), where player A = lower ATP player ID.
+
+**Training:** Time-based splits only. Default model trains on 2019–2023 and validates on 2024. For simulating past tournaments, retroactive models (`xgb_model_thru{year}.json`) are trained to avoid future leakage.
+
+**Recency weighting:** Exponential decay by year — `weight = decay_rate ^ (max_year − year)`. `decay_rate = 1.0` weights all years equally; lower values upweight recent seasons.
+
+### Current best hyperparameters
+
+| Parameter | Value |
+|-----------|-------|
+| `max_depth` | 4 |
+| `min_child_weight` | 5 |
+| `decay_rate` | 1.0 |
+| `learning_rate` | 0.05 |
+| `subsample` | 0.8 |
+| `colsample_bytree` | 0.7 |
+| `reg_lambda` | 3 |
+
+### Validation performance (held-out 2024 season)
+
+| Metric | Value |
+|--------|-------|
+| Accuracy | 63.98% |
+| AUC | 0.7126 |
+| Log-loss | 0.6193 |
+| Brier score | 0.2155 |
+
+---
+
+## Usage
+
+### Build the full pipeline
+
+```bash
+python3 src/cleaning.py
+python3 src/features.py
+python3 src/aggregation.py
+python3 src/build_dataset.py
+python3 models/train_xgb.py
+```
+
+### Simulate a tournament
+
+```bash
+python3 src/simulator.py "Alcaraz" "Roland Garros" 2024 --n-sims 5000
+```
+
+Output is JSON: round-by-round reach probabilities, opponent frequencies by round, expected exit, and tournament win probability.
+
+### Train a retroactive model (leakage-free for past tournaments)
+
+```bash
+# Train through 2022 to simulate any 2023 tournament
+python3 models/train_xgb.py --train-through 2022
+
+python3 src/simulator.py "Djokovic" "Australian Open" 2023 \
+    --n-sims 5000 \
+    --model-path models/xgb_model_thru2022.json
+```
+
+---
+
+## Project Structure
+
+```
+atp-tennis-predictor/
+├── data/
+│   ├── raw/                        ATP match CSVs (2018–2024)
+│   ├── cleaned/                    Cleaned match data
+│   ├── features/                   Feature-enriched matches + H2H databases
+│   ├── aggregated/                 Per-player surface-year stats
+│   └── processed/                  Model-ready dataset
+├── models/
+│   ├── train_xgb.py                Grid search + training script
+│   ├── xgb_model.json              Default model (trained through 2023)
+│   ├── xgb_model_thru2022.json     Retroactive model for 2023 simulations
+│   ├── feature_importance.csv      Feature gain scores
+│   └── best_params.json            Best hyperparameters
+├── src/
+│   ├── cleaning.py                 Raw CSV cleaning
+│   ├── features.py                 Feature engineering (H2H, form, home advantage)
+│   ├── aggregation.py              Per-player stat aggregation
+│   ├── build_dataset.py            Model dataset construction
+│   ├── build_draw.py               Tournament bracket builder
+│   └── simulator.py                Monte Carlo tournament simulator
+└── .claude/
+    └── skills/                     Claude AI skill definitions
+```
+
+---
+
+## Data Source
+
+[Jeff Sackmann's tennis_atp repository](https://github.com/JeffSackmann/tennis_atp) — ATP tour matches 2018–2024.  
+~16,000 raw matches → ~10,800 model rows (after year-lag filtering).
