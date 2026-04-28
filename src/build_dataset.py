@@ -12,6 +12,11 @@ SURFACE_ENC = {'Hard': 0, 'Clay': 1, 'Grass': 2}
 LEVEL_ENC   = {'A': 0, 'G': 1, 'M': 2, 'F': 3}
 HAND_ENC    = {'R': 0, 'L': 1, 'U': 0}
 
+# Pseudo-match count used as Bayesian prior for tourney_win_rate.
+# Shrinks sparse histories toward 0.5; a player needs ~6 real matches before
+# their rate moves meaningfully away from neutral (0/6 → 25%, 6/6 → 75%).
+TOURNEY_WIN_RATE_PRIOR = 3
+
 # (output_name, numerator_col, denominator_col) — computed from agg totals
 AGG_RATE_TRIPLES = [
     ('ace_rate',             'total_ace',      'total_svpt'),
@@ -111,12 +116,9 @@ def _add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     df['rank_diff']       = df['A_rank']     - df['B_rank']
     df['rank_pts_diff']   = df['A_rank_pts'] - df['B_rank_pts']
-    df['A_tourney_win_rate'] = (
-        df['A_tourney_wins'] / df['A_tourney_matches'].replace(0, np.nan)
-    ).fillna(0.0)
-    df['B_tourney_win_rate'] = (
-        df['B_tourney_wins'] / df['B_tourney_matches'].replace(0, np.nan)
-    ).fillna(0.0)
+    p = TOURNEY_WIN_RATE_PRIOR
+    df['A_tourney_win_rate'] = (df['A_tourney_wins'] + p * 0.5) / (df['A_tourney_matches'] + p)
+    df['B_tourney_win_rate'] = (df['B_tourney_wins'] + p * 0.5) / (df['B_tourney_matches'] + p)
     return df
 
 

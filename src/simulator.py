@@ -15,7 +15,10 @@ from build_draw import (
     build_bracket_tree, extract_player_attrs, find_tournament,
     get_actual_path, load_cleaned, tournament_info,
 )
-from build_dataset import SURFACE_ENC, LEVEL_ENC, AGG_RATE_TRIPLES, LAGGED_STAT_COLS, _add_rates
+from build_dataset import (
+    SURFACE_ENC, LEVEL_ENC, AGG_RATE_TRIPLES, LAGGED_STAT_COLS, _add_rates,
+    TOURNEY_WIN_RATE_PRIOR,
+)
 from features import TOURNEY_COUNTRY
 
 AGG_DIR   = Path(__file__).parent.parent / "data" / "aggregated"
@@ -99,9 +102,10 @@ def merge_player_attrs(draw_attrs: dict, lagged: dict,
         th = (tourney_history or {}).get(pid, {})
         wins    = th.get('tourney_wins',    0)
         matches = th.get('tourney_matches', 0)
+        p = TOURNEY_WIN_RATE_PRIOR
         merged[pid]['tourney_titles']   = th.get('tourney_titles', 0)
         merged[pid]['tourney_matches']  = matches
-        merged[pid]['tourney_win_rate'] = wins / matches if matches > 0 else 0.0
+        merged[pid]['tourney_win_rate'] = (wins + p * 0.5) / (matches + p)
     return merged
 
 
