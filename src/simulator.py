@@ -15,6 +15,7 @@ from build_draw import (
     build_bracket_tree, extract_player_attrs, find_tournament,
     get_actual_path, load_cleaned, tournament_info,
 )
+from build_dataset import SURFACE_ENC, LEVEL_ENC, AGG_RATE_TRIPLES, LAGGED_STAT_COLS, _add_rates
 
 AGG_DIR   = Path(__file__).parent.parent / "data" / "aggregated"
 MODEL_DIR = Path(__file__).parent.parent / "models"
@@ -36,27 +37,6 @@ FEATURES = [
     'second_serve_win_pct_B', 'bp_save_pct_B', 'sv_gms_won_pct_B', 'rtn_win_pct_B',
 ]
 
-SURFACE_ENC = {'Hard': 0, 'Clay': 1, 'Grass': 2}
-LEVEL_ENC   = {'A': 0, 'G': 1, 'M': 2, 'F': 3}
-
-# (stat_name, numerator_col, denominator_col) — mirrors build_dataset.py
-AGG_RATE_TRIPLES = [
-    ('ace_rate',             'total_ace',      'total_svpt'),
-    ('df_rate',              'total_df',       'total_svpt'),
-    ('first_serve_pct',      'total_1stIn',    'total_svpt'),
-    ('first_serve_win_pct',  'total_1stWon',   'total_1stIn'),
-    ('second_serve_win_pct', 'total_2ndWon',   'total_2ndIn'),
-    ('bp_save_pct',          'total_bpSaved',  'total_bpFaced'),
-    ('sv_gms_won_pct',       'total_SvGmsWon', 'total_SvGms'),
-    ('rtn_win_pct',          'total_rtnWon',   'total_rtnGms'),
-]
-
-# Ordered to match the lagged section of FEATURES
-LAGGED_STAT_COLS = [
-    'win_rate', 'completed_winrate', 'strsets_rate', 'tiebreaks_winrate',
-    'rank_improvement', 'injured_during_swing', 'matches_played',
-] + [name for name, *_ in AGG_RATE_TRIPLES]
-
 
 # ── Model and data loading ─────────────────────────────────────────────────────
 
@@ -74,21 +54,6 @@ def load_model(model_path: Path = None) -> xgb.XGBClassifier:
     return model
 
 
-def _add_agg_rates(agg: pd.DataFrame) -> pd.DataFrame:
-    """Compute serve/return rate columns from raw count totals.
-
-    Args:
-        agg: Aggregated stats DataFrame with total_* columns.
-    Returns:
-        agg copy with rate columns appended; zero denominators → NaN.
-    """
-    a = agg.copy()
-    a['total_2ndIn'] = a['total_svpt'] - a['total_1stIn']
-    for name, num, den in AGG_RATE_TRIPLES:
-        a[name] = a[num] / a[den].replace(0, np.nan)
-    return a
-
-
 def build_lagged_stats(agg_df: pd.DataFrame, year: int, surface: str) -> dict:
     """Extract prior-year surface stats for every player.
 
@@ -100,7 +65,7 @@ def build_lagged_stats(agg_df: pd.DataFrame, year: int, surface: str) -> dict:
         Dict: {player_id: {stat_name: float}}.
     """
     prior = agg_df[(agg_df['year'] == year - 1) & (agg_df['surface'] == surface)]
-    prior = _add_agg_rates(prior)
+    prior = _add_rates(prior)
     return {
         int(row['player_id']): {
             col: float(row[col]) if pd.notna(row[col]) else np.nan
@@ -152,18 +117,28 @@ def compute_h2h_lookup(
         & (cleaned_df['surface'] == surface)
         & cleaned_df['winner_id'].isin(player_ids)
         & cleaned_df['loser_id'].isin(player_ids)
-    ].sort_values('tourney_date')
+    ]
+    if prior.empty:
+        return {}
 
-    h2h = {}
-    for _, row in prior.iterrows():
-        w, l  = int(row['winner_id']), int(row['loser_id'])
-        a, b  = (w, l) if w < l else (l, w)
-        key   = (a, b)
-        if key not in h2h:
-            h2h[key] = {'A_wins': 0, 'B_wins': 0, 'last_date': None}
-        h2h[key]['A_wins' if w < l else 'B_wins'] += 1
-        h2h[key]['last_date'] = row['tourney_date']
-    return h2h
+    w     = prior['winner_id'].astype(int)
+    l     = prior['loser_id'].astype(int)
+    tmp   = prior.assign(a_id=np.minimum(w, l), b_id=np.maximum(w, l),
+                         a_won=(w < l).astype(int))
+    grp   = tmp.groupby(['a_id', 'b_id'])
+
+    a_wins_s    = grp['a_won'].sum()
+    count_s     = grp.size()
+    last_date_s = grp['tourney_date'].max()
+
+    return {
+        (int(idx[0]), int(idx[1])): {
+            'A_wins':    int(a_wins),
+            'B_wins':    int(count_s[idx] - a_wins),
+            'last_date': last_date_s[idx],
+        }
+        for idx, a_wins in a_wins_s.items()
+    }
 
 
 def _h2h_values(h2h: dict, a_id: int, b_id: int,
@@ -273,7 +248,7 @@ def simulate_once(tree: Match, player_attrs: dict, predict_fn, rng) -> list:
     """
     matches = []
     champion = _simulate_collect(tree, player_attrs, predict_fn, rng, matches)
-    if champion not in ('BYE',):
+    if champion != 'BYE':
         matches.append(('W', champion, None))
     return matches
 
@@ -286,7 +261,7 @@ def _make_predict_fn(model, info: dict, player_attrs: dict, h2h: dict):
 
     Args:
         model: Loaded XGBClassifier.
-        info: Tournament info dict with surface_enc and level_enc.
+        info: Tournament info dict (must already contain surface_enc and level_enc).
         player_attrs: Combined player attrs dict.
         h2h: H2H lookup dict.
     Returns:
@@ -298,7 +273,7 @@ def _make_predict_fn(model, info: dict, player_attrs: dict, h2h: dict):
         key = (a_id, b_id, round_label)
         if key not in cache:
             row = build_feature_row(a_id, b_id, round_label, info, player_attrs, h2h)
-            X   = pd.DataFrame([row], columns=FEATURES)
+            X   = np.array(row, dtype=np.float32).reshape(1, -1)
             cache[key] = float(model.predict_proba(X)[0, 1])
         return cache[key]
 
@@ -338,21 +313,6 @@ def _resolve_player(name: str, draw_attrs: dict) -> int:
     )
 
 
-def _exit_round(sim_matches: list, target_id: int) -> str:
-    """Find the round the target player was eliminated in one simulation.
-
-    Args:
-        sim_matches: List of (round_label, winner, loser) from simulate_once().
-        target_id: Target player ID.
-    Returns:
-        Round label where player lost, or 'W' if they won the tournament.
-    """
-    for rl, winner, loser in sim_matches:
-        if loser == target_id:
-            return rl
-    return 'W'
-
-
 def _compile_results(
     target_id: int, draw_attrs: dict, info: dict,
     sim_match_lists: list, n_sims: int,
@@ -375,20 +335,20 @@ def _compile_results(
     opp_counts     = {r: Counter() for r in ROUND_LABELS}
 
     for sim in sim_match_lists:
-        exit_rl = _exit_round(sim, target_id)
-        exit_counts[exit_rl] += 1
-
-        exit_ord = ROUND_ORD.get(exit_rl, 8)
-        for rl in ROUND_LABELS:
-            if ROUND_ORD[rl] <= exit_ord:
-                round_reached[rl] += 1
-
+        exit_rl = 'W'
         for rl, winner, loser in sim:
             if rl == 'W':
                 continue
             if winner == target_id or loser == target_id:
                 opp = loser if winner == target_id else winner
                 opp_counts[rl][opp] += 1
+            if loser == target_id:
+                exit_rl = rl
+        exit_counts[exit_rl] += 1
+        exit_ord = ROUND_ORD.get(exit_rl, max(ROUND_ORD.values()) + 1)
+        for rl in ROUND_LABELS:
+            if ROUND_ORD[rl] <= exit_ord:
+                round_reached[rl] += 1
 
     return {
         'target_id':        target_id,
@@ -425,7 +385,7 @@ def run_simulation(
         tourney_name: Partial tournament name (case-insensitive).
         year: Tournament year.
         target_name: Player name or partial name (case-insensitive).
-        n_sims: Number of Monte Carlo simulations (default 1500).
+        n_sims: Number of Monte Carlo simulations (default 5000).
         cleaned_path: Override cleaned matches CSV path.
         agg_path: Override aggregated stats CSV path.
         model_path: Override model JSON path.
@@ -444,18 +404,16 @@ def run_simulation(
     draw_attrs = extract_player_attrs(tourney_df)
     target_id  = _resolve_player(target_name, draw_attrs)
 
+    info['surface_enc'] = SURFACE_ENC.get(info['surface'], 0)
+    info['level_enc']   = LEVEL_ENC.get(info['level'], 0)
+
     lagged  = build_lagged_stats(agg_df, year, info['surface'])
     attrs   = merge_player_attrs(draw_attrs, lagged)
     h2h     = compute_h2h_lookup(
         cleaned_df, tree.all_players(), info['surface'], info['date']
     )
-    info_dict = {
-        **info,
-        'surface_enc': SURFACE_ENC.get(info['surface'], 0),
-        'level_enc':   LEVEL_ENC.get(info['level'], 0),
-    }
 
-    predict_fn = _make_predict_fn(model, info_dict, attrs, h2h)
+    predict_fn = _make_predict_fn(model, info, attrs, h2h)
     rng        = np.random.default_rng(42)
     sim_lists  = [simulate_once(tree, attrs, predict_fn, rng) for _ in range(n_sims)]
 
@@ -474,7 +432,7 @@ if __name__ == '__main__':
     parser.add_argument('tournament', help='Tournament name (partial ok)')
     parser.add_argument('year',       type=int, help='Tournament year')
     parser.add_argument('--n-sims',   type=int, default=5000,
-                        help='Number of simulations (default 1500)')
+                        help='Number of simulations (default 5000)')
     args = parser.parse_args()
 
     try:

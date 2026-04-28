@@ -10,6 +10,8 @@ ROUND_ORD  = {'R128': 1, 'BR': 1, 'R64': 2, 'RR': 3, 'R32': 3,
               'R16': 4, 'QF': 5, 'SF': 6, 'F': 7}
 PREV_ROUND = {'F': 'SF', 'SF': 'QF', 'QF': 'R16',
               'R16': 'R32', 'R32': 'R64', 'R64': 'R128'}
+# Ordered elimination rounds only. BR (bye-round) and RR (round-robin) are
+# excluded: the bracket model never simulates those round types.
 ROUND_LABELS = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F']
 
 
@@ -176,6 +178,24 @@ def build_bracket_tree(tourney_df: pd.DataFrame) -> Match:
 
 # ── Player attributes ──────────────────────────────────────────────────────────
 
+# Default fallback values used when a player attribute is missing from match data.
+_ATTR_DEFAULTS = {'rank': 500.0, 'rank_points': 0.0, 'age': 25.0, 'ht': 185.0}
+
+
+def _float_or(row, col: str, default: float) -> float:
+    """Return float(row[col]) if the value is non-null, else default.
+
+    Args:
+        row: pandas Series (one match row).
+        col: Column name.
+        default: Fallback value.
+    Returns:
+        Parsed float or default.
+    """
+    val = row.get(col)
+    return float(val) if pd.notna(val) else default
+
+
 def extract_player_attrs(tourney_df: pd.DataFrame) -> dict:
     """Extract match-time attributes for every player from the tournament draw.
 
@@ -201,15 +221,11 @@ def extract_player_attrs(tourney_df: pd.DataFrame) -> dict:
                 seed = np.nan
             attrs[pid] = {
                 'name':     row[f'{role}_name'],
-                'rank':     float(row[f'{role}_rank'])
-                            if pd.notna(row.get(f'{role}_rank')) else 500.0,
-                'rank_pts': float(row[f'{role}_rank_points'])
-                            if pd.notna(row.get(f'{role}_rank_points')) else 0.0,
+                'rank':     _float_or(row, f'{role}_rank',        _ATTR_DEFAULTS['rank']),
+                'rank_pts': _float_or(row, f'{role}_rank_points', _ATTR_DEFAULTS['rank_points']),
                 'seed':     seed,
-                'age':      float(row[f'{role}_age'])
-                            if pd.notna(row.get(f'{role}_age')) else 25.0,
-                'ht':       float(row[f'{role}_ht'])
-                            if pd.notna(row.get(f'{role}_ht')) else 185.0,
+                'age':      _float_or(row, f'{role}_age',         _ATTR_DEFAULTS['age']),
+                'ht':       _float_or(row, f'{role}_ht',          _ATTR_DEFAULTS['ht']),
                 'hand_L':   1 if row.get(f'{role}_hand') == 'L' else 0,
             }
     return attrs
@@ -226,9 +242,12 @@ def get_actual_path(tourney_df: pd.DataFrame, target_id: int) -> dict:
         R128 entry will be {'opponent_name': 'BYE', 'won': True} if player had a bye.
     """
     first_round_ord = tourney_df['round_ord'].min()
-    first_round     = next(r for r, o in ROUND_ORD.items() if o == first_round_ord)
-    r1_players      = (set(tourney_df[tourney_df['round'] == first_round]['winner_id'])
-                       | set(tourney_df[tourney_df['round'] == first_round]['loser_id']))
+    # Use the actual round label present in the data rather than reverse-mapping
+    # the ordinal — multiple labels share the same ordinal (e.g. R128 and BR = 1).
+    first_round_rows = tourney_df[tourney_df['round_ord'] == first_round_ord]
+    first_round      = first_round_rows.iloc[0]['round']
+    r1_players       = (set(first_round_rows['winner_id'])
+                        | set(first_round_rows['loser_id']))
 
     path = {}
     if first_round == 'R128' and target_id not in r1_players:

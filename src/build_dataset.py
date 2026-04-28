@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+from build_draw import ROUND_ORD
+
 FEAT_DIR = Path(__file__).parent.parent / "data" / "features"
 AGG_DIR  = Path(__file__).parent.parent / "data" / "aggregated"
 PROC_DIR = Path(__file__).parent.parent / "data" / "processed"
 
-ROUND_ORD   = {'R128': 1, 'BR': 1, 'R64': 2, 'RR': 3, 'R32': 3,
-                'R16': 4, 'QF': 5, 'SF': 6, 'F': 7}
 SURFACE_ENC = {'Hard': 0, 'Clay': 1, 'Grass': 2}
 LEVEL_ENC   = {'A': 0, 'G': 1, 'M': 2, 'F': 3}
 HAND_ENC    = {'R': 0, 'L': 1, 'U': 0}
@@ -24,7 +24,7 @@ AGG_RATE_TRIPLES = [
     ('rtn_win_pct',          'total_rtnWon',   'total_rtnGms'),
 ]
 
-LAGGED_COLS = [
+LAGGED_STAT_COLS = [
     'win_rate', 'completed_winrate', 'strsets_rate', 'tiebreaks_winrate',
     'rank_improvement', 'injured_during_swing', 'matches_played',
 ] + [name for name, *_ in AGG_RATE_TRIPLES]
@@ -88,10 +88,10 @@ def _merge_lagged(
         id_col: Column holding the player ID to join on (e.g. 'A_id').
         suffix: Column suffix for merged stats ('_A' or '_B').
     Returns:
-        matches with LAGGED_COLS merged in as <col><suffix>.
+        matches with LAGGED_STAT_COLS merged in as <col><suffix>.
     """
-    slim = agg[['year', 'player_id', 'surface'] + LAGGED_COLS].copy()
-    slim = slim.rename(columns={c: f'{c}{suffix}' for c in LAGGED_COLS})
+    slim = agg[['year', 'player_id', 'surface'] + LAGGED_STAT_COLS].copy()
+    slim = slim.rename(columns={c: f'{c}{suffix}' for c in LAGGED_STAT_COLS})
     slim['year'] = slim['year'] + 1       # prev-year stats join to next year's matches
     slim = slim.rename(columns={'player_id': id_col})
     return matches.merge(slim, on=['year', id_col, 'surface'], how='left')
@@ -150,7 +150,7 @@ def build_dataset(feat_df: pd.DataFrame, agg_df: pd.DataFrame) -> pd.DataFrame:
     df = _merge_lagged(df, agg_rated, 'B_id', '_B')
 
     # Drop rows where either player lacks prev-year same-surface stats
-    lag_check = [f'{c}_A' for c in LAGGED_COLS] + [f'{c}_B' for c in LAGGED_COLS]
+    lag_check = [f'{c}_A' for c in LAGGED_STAT_COLS] + [f'{c}_B' for c in LAGGED_STAT_COLS]
     df = df.dropna(subset=[f'win_rate_A', f'win_rate_B']).reset_index(drop=True)
 
     df = _encode(df)
