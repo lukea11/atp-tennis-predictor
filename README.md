@@ -228,20 +228,18 @@ What this enables:
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: mirror augmentation added to training, model retrained,
-               prediction report sample updated with new metrics
+Invoked after: readme-update skill updated with full README structure
+               template (numbered skills, enforces bullets, invoke
+               code blocks, comparison table, thinking section)
 
 Changes made:
-  - Rewrote README to match updated skill structure (numbered skills,
-    "What it enforces" bullets, "To invoke" code blocks)
-  - Moved "What are Claude Skills?" into a <details> dropdown
-  - Added "The Thinking Behind Skills" section with two dropdowns
-  - Updated prediction report sample: AUC 0.7180, accuracy 65.54%,
-    new top features reflect symmetric A/B training
-  - Updated README Update sample to reflect this invocation
+  - README already matched updated skill structure — no structural
+    changes required
+  - Updated README Update sample output to reflect this invocation
 
-Skills section verified: all 5 skills present with first principles,
-enforces list, invoke command, and sample output in dropdown.
+Skills section verified: all 5 skills present with first principles
+reasoning, "What it enforces" bullets, "To invoke" code block, and
+sample output in <details> dropdown.
 ```
 
 </details>
