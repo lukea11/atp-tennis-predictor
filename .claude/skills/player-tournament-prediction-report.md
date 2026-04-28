@@ -67,6 +67,19 @@ Before running the simulation:
 - **R32 onward**: Show top 2 most likely opponents by occurrence count in simulations.
 - Format frequency as: `[Name] (seen in X% of simulations)`
 
+## Cross-round deduplication (CRITICAL)
+The bracket structure guarantees that each player occupies exactly one section
+relative to the target player — a player who could be the QF opponent cannot
+also be an SF or Final opponent, because meeting them in the QF eliminates one
+of them. Therefore:
+
+**A player's name must NEVER appear in more than one round row.**
+
+When selecting top-2 opponents for each round, process rounds in order
+(R128 → Final) and exclude any player already shown in an earlier round.
+In practice the simulation already enforces this (bracket sections are
+disjoint), but always verify the output before displaying.
+
 ## Report format
 
 ```

@@ -57,37 +57,36 @@ Daniil Medvedev: Australian Open 2024 Chances
 ───────────────────────────────
 Possible Path
 ───────────────────────────────
-Round 128 : Rinky Hijikata                                P(win): 98%
-Round 64  : Marcos Giron (14%) or Jiri Lehecka (12%)     P(reach): 97%
-Round 32  : Sebastian Korda (18%) or Lehecka (16%)       P(reach): 91%
-Round 16  : Andrey Rublev (31%) or Karen Khachanov (22%) P(reach): 77%
-QF        : Carlos Alcaraz (28%) or Hubert Hurkacz (18%) P(reach): 58%
-SF        : Novak Djokovic (41%) or Alcaraz (23%)        P(reach): 35%
-Final     : Djokovic (52%) or Alcaraz (24%)              P(reach): 22%
+Round 128 : Terence Atmane                                          P(win): 87%
+Round 64  : Emil Ruusuvuori (59%) or Patrick Kypson (28%)          P(reach): 87%
+Round 32  : Felix Auger-Aliassime (34%) or Hugo Grenier (17%)      P(reach): 73%
+Round 16  : Grigor Dimitrov (22%) or Alejandro Davidovich Fokina   P(reach): 60%
+QF        : Holger Rune (11%) or Hubert Hurkacz (10%)              P(reach): 47%
+SF        : Carlos Alcaraz (14%) or Alexander Zverev (6%)          P(reach): 35%
+Final     : Novak Djokovic (8%) or Jannik Sinner (4%)              P(reach): 20%
 
 ───────────────────────────────
 Toughest Round
 ───────────────────────────────
-The toughest expected obstacle is the SF against Novak Djokovic.
-Medvedev's service hold rate (sv_gms_won_pct) of 89% on hard courts
-vs Djokovic's break-point save rate (bp_save_pct) of 71% sets up a
-close contest — but Djokovic's completed-match win rate of 83% on
-hard is the bar Medvedev must clear.
+The toughest expected obstacle is the Final against Novak Djokovic.
+Djokovic's service hold rate (sv_gms_won_pct) of 91% on hard courts
+and break-point save rate (bp_save_pct) of 74% make him the hardest
+wall to get through — the model gives Medvedev a 53% conditional win
+probability in that matchup.
 
 ───────────────────────────────
 Summary
 ───────────────────────────────
 Expected exit     : SF (last round with P(reach) ≥ 25% — P(reach) = 35%)
-P(win SF)         : 63%
-Toughest match    : SF vs Djokovic (37% win probability)
-P(win tournament) : 22%
+P(win SF)         : 58%
+Toughest match    : Final vs Djokovic (53% win probability)
+P(win tournament) : 11%
 
-Medvedev enters as a legitimate contender on his best surface, with
-a 22% tournament win probability that reflects both his serve dominance
-and the presence of Djokovic in the draw. His service hold rate
-(sv_gms_won_pct) of 89% on hard courts makes him dangerous in any
-match, but his overall H2H last-5 record (h2h_last5) of 1-4 against
-Djokovic is the primary drag on his ceiling.
+Medvedev is the model's pick to reach the SF on his best surface,
+with a 35% chance of getting there and a 58% chance of winning once
+he does. His service hold rate (sv_gms_won_pct) drives his high
+win probabilities in early rounds, but the Final draw — likely
+Djokovic — drops his tournament win ceiling to 11%.
 ```
 </details>
 
