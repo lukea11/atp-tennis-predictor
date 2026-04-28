@@ -1,3 +1,4 @@
+import itertools
 import json
 import numpy as np
 import pandas as pd
@@ -10,20 +11,25 @@ from sklearn.metrics import (
 PROC_DIR  = Path(__file__).parent.parent / "data" / "processed"
 MODEL_DIR = Path(__file__).parent
 
-TRAIN_YEARS = [2019, 2020, 2021]
-VAL_YEARS   = [2022]
-TEST_YEARS  = [2023, 2024]
+TRAIN_YEARS = [2019, 2020, 2021, 2022, 2023]
+VAL_YEARS   = [2024]
 
-XGB_PARAMS = {
-    'n_estimators':       500,
-    'learning_rate':      0.05,
-    'max_depth':          5,
-    'min_child_weight':   3,
-    'subsample':          0.8,
-    'colsample_bytree':   0.8,
-    'eval_metric':        'logloss',
+# Fixed across all grid candidates; early stopping controls tree count
+BASE_PARAMS = {
+    'learning_rate':         0.05,
+    'n_estimators':          500,
+    'eval_metric':           'logloss',
     'early_stopping_rounds': 30,
-    'random_state':       42,
+    'random_state':          42,
+}
+
+PARAM_GRID = {
+    'max_depth':        [3, 4, 5],
+    'min_child_weight': [1, 3, 5],
+    'subsample':        [0.7, 0.8, 0.9],
+    'colsample_bytree': [0.7, 0.8],
+    'reg_alpha':        [0, 0.1, 0.5],
+    'reg_lambda':       [1, 3],
 }
 
 FEATURES = [
@@ -49,48 +55,66 @@ FEATURES = [
 
 
 def load_splits(path: Path) -> tuple:
-    """Load dataset and split into train, validation, and test sets by year.
-
-    Train: 2019-2021 | Val: 2022 (early stopping) | Test: 2023-2024.
+    """Load dataset and split into train (2019-2023) and val (2024).
 
     Args:
         path: Path to model_dataset.csv.
     Returns:
-        Tuple (X_train, X_val, X_test, y_train, y_val, y_test).
+        Tuple (X_train, X_val, y_train, y_val).
     """
     df = pd.read_csv(path)
     train = df[df['year'].isin(TRAIN_YEARS)]
     val   = df[df['year'].isin(VAL_YEARS)]
-    test  = df[df['year'].isin(TEST_YEARS)]
     return (
-        train[FEATURES], val[FEATURES], test[FEATURES],
-        train['label'],  val['label'],  test['label'],
+        train[FEATURES], val[FEATURES],
+        train['label'],  val['label'],
     )
 
 
-def train_model(
-    X_train: pd.DataFrame, y_train: pd.Series,
-    X_val:   pd.DataFrame, y_val:   pd.Series,
-) -> xgb.XGBClassifier:
-    """Train XGBoost classifier with early stopping on validation set.
+def _fit_candidate(params: dict, X_tr, y_tr, X_val, y_val) -> tuple:
+    """Fit one XGBoost candidate and return its val log-loss and model.
 
     Args:
-        X_train: Training features.
-        y_train: Training labels.
-        X_val: Validation features (used for early stopping only, not test).
-        y_val: Validation labels.
+        params: Hyperparameter dict (merged with BASE_PARAMS).
+        X_tr, y_tr: Training data.
+        X_val, y_val: Validation data for early stopping.
     Returns:
-        Fitted XGBClassifier.
+        Tuple (val_logloss, fitted_model).
     """
-    model = xgb.XGBClassifier(**XGB_PARAMS)
-    model.fit(
-        X_train, y_train,
-        eval_set=[(X_val, y_val)],
-        verbose=False,
-    )
-    print(f'Best iteration: {model.best_iteration}  '
-          f'val log-loss: {model.best_score:.4f}')
-    return model
+    model = xgb.XGBClassifier(**{**BASE_PARAMS, **params})
+    model.fit(X_tr, y_tr, eval_set=[(X_val, y_val)], verbose=False)
+    return model.best_score, model
+
+
+def grid_search(
+    X_train: pd.DataFrame, y_train: pd.Series,
+    X_val:   pd.DataFrame, y_val:   pd.Series,
+) -> tuple:
+    """Exhaustive grid search over PARAM_GRID, evaluated on val log-loss.
+
+    Args:
+        X_train, y_train: Training data.
+        X_val, y_val: Validation data.
+    Returns:
+        Tuple (best_params_dict, best_model, results_df).
+    """
+    keys   = list(PARAM_GRID.keys())
+    combos = list(itertools.product(*PARAM_GRID.values()))
+    total  = len(combos)
+    print(f'Grid search: {total} combinations')
+
+    results, best_loss, best_params, best_model = [], float('inf'), None, None
+    for i, vals in enumerate(combos, 1):
+        params = dict(zip(keys, vals))
+        loss, model = _fit_candidate(params, X_train, y_train, X_val, y_val)
+        results.append({**params, 'val_logloss': loss, 'best_iter': model.best_iteration})
+        if loss < best_loss:
+            best_loss, best_params, best_model = loss, params, model
+        if i % 20 == 0 or i == total:
+            print(f'  {i}/{total}  best so far: {best_loss:.4f}')
+
+    results_df = pd.DataFrame(results).sort_values('val_logloss').reset_index(drop=True)
+    return best_params, best_model, results_df
 
 
 def evaluate(
@@ -104,7 +128,7 @@ def evaluate(
         model: Fitted XGBClassifier.
         X: Feature matrix.
         y: True labels.
-        split_name: Label for printed output (e.g. 'Test 2023-2024').
+        split_name: Label for printed output.
     Returns:
         Dict of metric name → value.
     """
@@ -123,13 +147,13 @@ def evaluate(
 
 
 def feature_importance(model: xgb.XGBClassifier, top_n: int = 20) -> pd.DataFrame:
-    """Print and return top-N features by XGBoost gain importance.
+    """Print and return top-N features sorted by XGBoost gain.
 
     Args:
         model: Fitted XGBClassifier.
-        top_n: Number of top features to display.
+        top_n: Number of features to display.
     Returns:
-        DataFrame of feature importances sorted by gain descending.
+        DataFrame sorted by gain descending.
     """
     scores = model.get_booster().get_score(importance_type='gain')
     imp = (
@@ -142,29 +166,42 @@ def feature_importance(model: xgb.XGBClassifier, top_n: int = 20) -> pd.DataFram
     return imp
 
 
-def save_model(model: xgb.XGBClassifier, imp: pd.DataFrame) -> None:
-    """Save the trained model and feature importance table.
+def save_outputs(
+    model: xgb.XGBClassifier,
+    imp: pd.DataFrame,
+    best_params: dict,
+    grid_results: pd.DataFrame,
+) -> None:
+    """Save model, feature importance, best params, and full grid results.
 
     Args:
-        model: Fitted XGBClassifier.
+        model: Best fitted XGBClassifier.
         imp: Feature importance DataFrame.
+        best_params: Best hyperparameter dict.
+        grid_results: Full grid search results DataFrame.
     """
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     model.save_model(MODEL_DIR / 'xgb_model.json')
     imp.to_csv(MODEL_DIR / 'feature_importance.csv', index=False)
-    print(f'\nModel saved to models/xgb_model.json')
+    grid_results.to_csv(MODEL_DIR / 'grid_search_results.csv', index=False)
+    with open(MODEL_DIR / 'best_params.json', 'w') as f:
+        json.dump({**BASE_PARAMS, **best_params}, f, indent=2)
+    print('\nSaved: xgb_model.json, feature_importance.csv, '
+          'grid_search_results.csv, best_params.json')
 
 
 if __name__ == '__main__':
-    X_train, X_val, X_test, y_train, y_val, y_test = load_splits(
-        PROC_DIR / 'model_dataset.csv'
-    )
-    print(f'Train: {len(X_train):,}  Val: {len(X_val):,}  Test: {len(X_test):,}')
+    X_train, X_val, y_train, y_val = load_splits(PROC_DIR / 'model_dataset.csv')
+    print(f'Train: {len(X_train):,}  Val: {len(X_val):,}')
 
-    model = train_model(X_train, y_train, X_val, y_val)
-    evaluate(model, X_train, y_train, 'Train 2019-2021')
-    evaluate(model, X_val,   y_val,   'Val   2022')
-    evaluate(model, X_test,  y_test,  'Test  2023-2024')
+    best_params, best_model, grid_results = grid_search(X_train, y_train, X_val, y_val)
 
-    imp = feature_importance(model)
-    save_model(model, imp)
+    print('\n── Best hyperparameters ──────────────────')
+    for k, v in best_params.items():
+        print(f'  {k:<22} {v}')
+
+    evaluate(best_model, X_train, y_train, 'Train 2019-2023')
+    evaluate(best_model, X_val,   y_val,   'Val   2024')
+
+    imp = feature_importance(best_model)
+    save_outputs(best_model, imp, best_params, grid_results)

@@ -1,0 +1,13 @@
+{
+  "learning_rate": 0.05,
+  "n_estimators": 500,
+  "eval_metric": "logloss",
+  "early_stopping_rounds": 30,
+  "random_state": 42,
+  "max_depth": 4,
+  "min_child_weight": 3,
+  "subsample": 0.8,
+  "colsample_bytree": 0.7,
+  "reg_alpha": 0,
+  "reg_lambda": 3
+}
