@@ -241,13 +241,10 @@ What this enables:
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: readme-update skill updated to wrap each skill section
-               in its own <details> dropdown
+Invoked after: no structural changes — README already matched skill
 
 Changes made:
-  - Wrapped all 5 skill sections in <details> dropdowns
-  - Updated readme-update skill to codify per-skill dropdown rule
-  - README Update sample reflects this invocation
+  - Updated README Update sample to reflect current invocation
 
 Skills section verified: all 5 skills present with first principles
 reasoning, "What it enforces" bullets, "To invoke" code block, and
