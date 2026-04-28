@@ -41,6 +41,7 @@ PLAYER_ATTRS = {
     'tourney_wins':   ('winner_tourney_wins',       'loser_tourney_wins'),
     'tourney_titles': ('winner_tourney_titles',     'loser_tourney_titles'),
     'tourney_matches':('winner_tourney_matches',    'loser_tourney_matches'),
+    'is_home':        ('winner_is_home',            'loser_is_home'),
 }
 
 

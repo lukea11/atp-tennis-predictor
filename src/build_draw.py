@@ -227,6 +227,7 @@ def extract_player_attrs(tourney_df: pd.DataFrame) -> dict:
                 'age':      _float_or(row, f'{role}_age',         _ATTR_DEFAULTS['age']),
                 'ht':       _float_or(row, f'{role}_ht',          _ATTR_DEFAULTS['ht']),
                 'hand_L':   1 if row.get(f'{role}_hand') == 'L' else 0,
+                'ioc':      row.get(f'{role}_ioc', ''),
             }
     return attrs
 

@@ -8,6 +8,117 @@ STRAIGHT_SETS_NEEDED = {3: 2, 5: 3}
 MIN_SET_GAMES = 6          # minimum games won to count as a completed set
 NO_STATS_RE = re.compile(r"RET|W/O")
 
+# Tournament name (lowercase, stripped) → host country IOC code.
+# None means no fixed host country (team events, rotating venues).
+TOURNEY_COUNTRY = {
+    'atp rio de janeiro':    'BRA',
+    'rio de janeiro':        'BRA',
+    'rio de janeiro':        'BRA',
+    'acapulco':              'MEX',
+    'adelaide':              'AUS',
+    'adelaide 1':            'AUS',
+    'adelaide 2':            'AUS',
+    'antalya':               'TUR',
+    'antwerp':               'BEL',
+    'astana':                'KAZ',
+    'atlanta':               'USA',
+    'atp cup':               'AUS',
+    'auckland':              'NZL',
+    'australian open':       'AUS',
+    'banja luka':            'BIH',
+    'barcelona':             'ESP',
+    'basel':                 'SUI',
+    'bastad':                'SWE',
+    'beijing':               'CHN',
+    'belgrade':              'SRB',
+    'belgrade 2':            'SRB',
+    'brisbane':              'AUS',
+    'bucharest':             'ROU',
+    'budapest':              'HUN',
+    'buenos aires':          'ARG',
+    'cagliari':              'ITA',
+    'canada masters':        'CAN',
+    'chengdu':               'CHN',
+    'cincinnati masters':    'USA',
+    'cologne 1':             'GER',
+    'cologne 2':             'GER',
+    'cordoba':               'ARG',
+    'dallas':                'USA',
+    'delray beach':          'USA',
+    'doha':                  'QAT',
+    'dubai':                 'UAE',
+    'eastbourne':            'GBR',
+    'estoril':               'POR',
+    'florence':              'ITA',
+    'geneva':                'SUI',
+    'gijon':                 'ESP',
+    'great ocean road open': 'AUS',
+    'gstaad':                'SUI',
+    'halle':                 'GER',
+    'hamburg':               'GER',
+    'hong kong':             'HKG',
+    'houston':               'USA',
+    'indian wells masters':  'USA',
+    'istanbul':              'TUR',
+    'kitzbuhel':             'AUT',
+    'laver cup':             None,
+    'los cabos':             'MEX',
+    'lyon':                  'FRA',
+    'madrid masters':        'ESP',
+    'mallorca':              'ESP',
+    'marbella':              'ESP',
+    'marrakech':             'MAR',
+    'marseille':             'FRA',
+    'melbourne':             'AUS',
+    'metz':                  'FRA',
+    'miami masters':         'USA',
+    'monte carlo masters':   'MON',
+    'montpellier':           'FRA',
+    'moscow':                'RUS',
+    'munich':                'GER',
+    'murray river open':     'AUS',
+    'naples':                'ITA',
+    'new york':              'USA',
+    'newport':               'USA',
+    'nextgen finals':        'ITA',
+    'nur-sultan':            'KAZ',
+    'paris masters':         'FRA',
+    'parma':                 'ITA',
+    'pune':                  'IND',
+    "queen's club":          'GBR',
+    'quito':                 'ECU',
+    'roland garros':         'FRA',
+    'rome masters':          'ITA',
+    'rotterdam':             'NED',
+    'san diego':             'USA',
+    'santiago':              'CHI',
+    'sao paulo':             'BRA',
+    'sardinia':              'ITA',
+    'seoul':                 'KOR',
+    'shanghai masters':      'CHN',
+    'shenzhen':              'CHN',
+    'singapore':             'SGP',
+    'sofia':                 'BUL',
+    'st petersburg':         'RUS',
+    'st. petersburg':        'RUS',
+    'stockholm':             'SWE',
+    'stuttgart':             'GER',
+    'sydney':                'AUS',
+    'tel aviv':              'ISR',
+    'tokyo':                 'JPN',
+    'tokyo olympics':        'JPN',
+    'tour finals':           'GBR',
+    'us open':               'USA',
+    'umag':                  'CRO',
+    'united cup':            'AUS',
+    'vienna':                'AUT',
+    'washington':            'USA',
+    'wimbledon':             'GBR',
+    'winston-salem':         'USA',
+    'zhuhai':                'CHN',
+    's hertogenbosch':       'NED',
+}
+
 
 # ── Service / return game metrics ─────────────────────────────────────────────
 
@@ -287,13 +398,34 @@ def compute_tourney_history(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+# ── Home advantage ────────────────────────────────────────────────────────────
+
+def compute_home_advantage(df: pd.DataFrame) -> pd.DataFrame:
+    """Add binary home-advantage columns using player nationality vs host country.
+
+    Looks up each tournament's host IOC code from TOURNEY_COUNTRY and compares
+    against winner_ioc / loser_ioc. 1 = player is playing in their home country.
+    Unknown or neutral-venue tournaments produce 0 for both players.
+
+    Args:
+        df: Match DataFrame with tourney_name, winner_ioc, loser_ioc columns.
+    Returns:
+        df copy with winner_is_home and loser_is_home columns added.
+    """
+    host = df['tourney_name'].str.strip().str.lower().map(TOURNEY_COUNTRY)
+    df = df.copy()
+    df['winner_is_home'] = (df['winner_ioc'] == host).astype(int)
+    df['loser_is_home']  = (df['loser_ioc']  == host).astype(int)
+    return df
+
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 def add_features(dfs: list) -> tuple:
     """Run all feature engineering steps on a list of yearly DataFrames.
 
-    Order: H2H → tourney history → loser_retired → service/return games
-           → tiebreaks → sets played → straight sets.
+    Order: H2H → tourney history → home advantage → loser_retired
+           → service/return games → tiebreaks → sets played → straight sets.
 
     Args:
         dfs: List of yearly cleaned match DataFrames (2018–2024).
@@ -302,6 +434,7 @@ def add_features(dfs: list) -> tuple:
     """
     df, h2h_db = compute_h2h(dfs)
     df = compute_tourney_history(df)
+    df = compute_home_advantage(df)
     df = add_loser_retired(df)
     df = add_service_return_games(df)
     df = add_tiebreaks(df)

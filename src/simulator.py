@@ -16,6 +16,7 @@ from build_draw import (
     get_actual_path, load_cleaned, tournament_info,
 )
 from build_dataset import SURFACE_ENC, LEVEL_ENC, AGG_RATE_TRIPLES, LAGGED_STAT_COLS, _add_rates
+from features import TOURNEY_COUNTRY
 
 AGG_DIR   = Path(__file__).parent.parent / "data" / "aggregated"
 MODEL_DIR = Path(__file__).parent.parent / "models"
@@ -29,6 +30,7 @@ FEATURES = [
     'rank_diff', 'rank_pts_diff',
     'A_tourney_titles', 'A_tourney_win_rate', 'A_tourney_matches',
     'B_tourney_titles', 'B_tourney_win_rate', 'B_tourney_matches',
+    'A_is_home', 'B_is_home',
     'win_rate_A', 'completed_winrate_A', 'strsets_rate_A', 'tiebreaks_winrate_A',
     'rank_improvement_A', 'injured_during_swing_A', 'matches_played_A',
     'ace_rate_A', 'df_rate_A', 'first_serve_pct_A', 'first_serve_win_pct_A',
@@ -230,6 +232,9 @@ def build_feature_row(
     a        = player_attrs[a_id]
     b        = player_attrs[b_id]
     ah, bh, days = _h2h_values(h2h, a_id, b_id, info['date'])
+    host_country = TOURNEY_COUNTRY.get(info['name'].strip().lower())
+    a_home = 1 if (host_country and a.get('ioc') == host_country) else 0
+    b_home = 1 if (host_country and b.get('ioc') == host_country) else 0
     row = [
         info['surface_enc'], info['level_enc'],
         ROUND_ORD[round_label], info['best_of'],
@@ -240,6 +245,7 @@ def build_feature_row(
         a['rank_pts'] - b['rank_pts'],
         a.get('tourney_titles', 0),   a.get('tourney_win_rate', 0.0), a.get('tourney_matches', 0),
         b.get('tourney_titles', 0),   b.get('tourney_win_rate', 0.0), b.get('tourney_matches', 0),
+        a_home, b_home,
     ]
     for col in LAGGED_STAT_COLS:
         row.append(a.get(col, np.nan))
