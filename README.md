@@ -5,7 +5,7 @@
 ---
 
 ## The Role of Claude AI Skills
-Claude Skills are markdown instruction files that Claude Code references to produce consistent, standardised outputs for repeatable workflows — eliminating the need to re-explain processes and ensuring quality every time.
+Claude Skills are markdown instruction files that Claude Code references to produce consistent, standardised outputs for repeatable workflows, eliminating the need to re-explain processes and ensuring quality every time.
 
 ### Why skills and not just prompts?
 
