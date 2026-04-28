@@ -27,6 +27,8 @@ FEATURES = [
     'B_rank', 'B_rank_pts', 'B_seed', 'B_age', 'B_ht', 'B_h2h', 'hand_B_L',
     'days_since_h2h',
     'rank_diff', 'rank_pts_diff',
+    'A_tourney_titles', 'A_tourney_win_rate', 'A_tourney_matches',
+    'B_tourney_titles', 'B_tourney_win_rate', 'B_tourney_matches',
     'win_rate_A', 'completed_winrate_A', 'strsets_rate_A', 'tiebreaks_winrate_A',
     'rank_improvement_A', 'injured_during_swing_A', 'matches_played_A',
     'ace_rate_A', 'df_rate_A', 'first_serve_pct_A', 'first_serve_win_pct_A',
@@ -75,12 +77,15 @@ def build_lagged_stats(agg_df: pd.DataFrame, year: int, surface: str) -> dict:
     }
 
 
-def merge_player_attrs(draw_attrs: dict, lagged: dict) -> dict:
-    """Combine draw-time attributes with prior-year lagged surface stats.
+def merge_player_attrs(draw_attrs: dict, lagged: dict,
+                       tourney_history: dict = None) -> dict:
+    """Combine draw-time attributes with lagged stats and tournament history.
 
     Args:
         draw_attrs: From extract_player_attrs() — rank, seed, ht, etc.
         lagged: From build_lagged_stats() — win_rate, ace_rate, etc.
+        tourney_history: From compute_tourney_history_lookup() — optional;
+            keys tourney_titles, tourney_wins, tourney_matches per player.
     Returns:
         Merged dict: {player_id: combined_feature_attrs}.
     """
@@ -89,7 +94,48 @@ def merge_player_attrs(draw_attrs: dict, lagged: dict) -> dict:
         lag = lagged.get(pid, {})
         for col in LAGGED_STAT_COLS:
             merged[pid][col] = lag.get(col, np.nan)
+        th = (tourney_history or {}).get(pid, {})
+        wins    = th.get('tourney_wins',    0)
+        matches = th.get('tourney_matches', 0)
+        merged[pid]['tourney_titles']   = th.get('tourney_titles', 0)
+        merged[pid]['tourney_matches']  = matches
+        merged[pid]['tourney_win_rate'] = wins / matches if matches > 0 else 0.0
     return merged
+
+
+def compute_tourney_history_lookup(
+    cleaned_df: pd.DataFrame, player_ids: set,
+    tourney_name: str, before_date: pd.Timestamp,
+) -> dict:
+    """Compute each draw player's prior match history at this tournament.
+
+    Args:
+        cleaned_df: Full cleaned match DataFrame.
+        player_ids: Set of player IDs in the tournament draw.
+        tourney_name: Exact tournament name (as it appears in the data).
+        before_date: Tournament start date (exclusive cutoff).
+    Returns:
+        Dict: {player_id: {tourney_wins, tourney_titles, tourney_matches}}.
+    """
+    prior = cleaned_df[
+        (cleaned_df['tourney_date'] < before_date)
+        & (cleaned_df['tourney_name'] == tourney_name)
+    ].sort_values('tourney_date')
+
+    db: dict = {}
+    for _, row in prior.iterrows():
+        w_id = int(row['winner_id'])
+        l_id = int(row['loser_id'])
+        for pid in (w_id, l_id):
+            if pid not in db:
+                db[pid] = {'tourney_wins': 0, 'tourney_titles': 0, 'tourney_matches': 0}
+        db[w_id]['tourney_wins']    += 1
+        db[w_id]['tourney_matches'] += 1
+        db[l_id]['tourney_matches'] += 1
+        if row['round'] == 'F':
+            db[w_id]['tourney_titles'] += 1
+
+    return {pid: db[pid] for pid in player_ids if pid in db}
 
 
 # ── H2H lookup ─────────────────────────────────────────────────────────────────
@@ -192,6 +238,8 @@ def build_feature_row(
         days,
         a['rank'] - b['rank'],
         a['rank_pts'] - b['rank_pts'],
+        a.get('tourney_titles', 0),   a.get('tourney_win_rate', 0.0), a.get('tourney_matches', 0),
+        b.get('tourney_titles', 0),   b.get('tourney_win_rate', 0.0), b.get('tourney_matches', 0),
     ]
     for col in LAGGED_STAT_COLS:
         row.append(a.get(col, np.nan))
@@ -407,8 +455,11 @@ def run_simulation(
     info['surface_enc'] = SURFACE_ENC.get(info['surface'], 0)
     info['level_enc']   = LEVEL_ENC.get(info['level'], 0)
 
-    lagged  = build_lagged_stats(agg_df, year, info['surface'])
-    attrs   = merge_player_attrs(draw_attrs, lagged)
+    lagged       = build_lagged_stats(agg_df, year, info['surface'])
+    tourney_hist = compute_tourney_history_lookup(
+        cleaned_df, tree.all_players(), info['name'], info['date']
+    )
+    attrs   = merge_player_attrs(draw_attrs, lagged, tourney_hist)
     h2h     = compute_h2h_lookup(
         cleaned_df, tree.all_players(), info['surface'], info['date']
     )

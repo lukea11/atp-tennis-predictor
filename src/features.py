@@ -229,13 +229,71 @@ def compute_h2h(dfs: list) -> tuple:
     return df, h2h_db
 
 
+# ── Tournament history ────────────────────────────────────────────────────────
+
+def compute_tourney_history(df: pd.DataFrame) -> pd.DataFrame:
+    """Add per-player prior tournament history features (no leakage).
+
+    For each match, records how many matches the player has won, how many
+    titles they have won, and how many total matches they have played at
+    this specific tournament in prior appearances. State is captured BEFORE
+    the match so there is no leakage.
+
+    Requires df to be sorted by (tourney_date, match_num) — this is already
+    guaranteed when called after compute_h2h.
+
+    Args:
+        df: Match DataFrame sorted by tourney_date, match_num.
+    Returns:
+        df copy with 6 new columns:
+            winner/loser × tourney_wins / tourney_titles / tourney_matches.
+    """
+    db = {}   # {(player_id, tourney_name): {wins, titles, matches}}
+    w_wins, l_wins       = [], []
+    w_titles, l_titles   = [], []
+    w_matches, l_matches = [], []
+
+    for _, row in df.iterrows():
+        t    = row['tourney_name']
+        w_id = int(row['winner_id'])
+        l_id = int(row['loser_id'])
+        wk, lk = (w_id, t), (l_id, t)
+
+        ws = db.get(wk, {'wins': 0, 'titles': 0, 'matches': 0})
+        ls = db.get(lk, {'wins': 0, 'titles': 0, 'matches': 0})
+
+        w_wins.append(ws['wins']);    l_wins.append(ls['wins'])
+        w_titles.append(ws['titles']); l_titles.append(ls['titles'])
+        w_matches.append(ws['matches']); l_matches.append(ls['matches'])
+
+        if wk not in db:
+            db[wk] = {'wins': 0, 'titles': 0, 'matches': 0}
+        if lk not in db:
+            db[lk] = {'wins': 0, 'titles': 0, 'matches': 0}
+
+        db[wk]['wins']    += 1
+        db[wk]['matches'] += 1
+        db[lk]['matches'] += 1
+        if row['round'] == 'F':
+            db[wk]['titles'] += 1
+
+    df = df.copy()
+    df['winner_tourney_wins']    = w_wins
+    df['loser_tourney_wins']     = l_wins
+    df['winner_tourney_titles']  = w_titles
+    df['loser_tourney_titles']   = l_titles
+    df['winner_tourney_matches'] = w_matches
+    df['loser_tourney_matches']  = l_matches
+    return df
+
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 def add_features(dfs: list) -> tuple:
     """Run all feature engineering steps on a list of yearly DataFrames.
 
-    Order: H2H → loser_retired → service/return games → tiebreaks
-           → sets played → straight sets.
+    Order: H2H → tourney history → loser_retired → service/return games
+           → tiebreaks → sets played → straight sets.
 
     Args:
         dfs: List of yearly cleaned match DataFrames (2018–2024).
@@ -243,6 +301,7 @@ def add_features(dfs: list) -> tuple:
         Tuple (feature_df, h2h_database_df).
     """
     df, h2h_db = compute_h2h(dfs)
+    df = compute_tourney_history(df)
     df = add_loser_retired(df)
     df = add_service_return_games(df)
     df = add_tiebreaks(df)

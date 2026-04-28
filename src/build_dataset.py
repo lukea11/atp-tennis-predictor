@@ -30,14 +30,17 @@ LAGGED_STAT_COLS = [
 ] + [name for name, *_ in AGG_RATE_TRIPLES]
 
 PLAYER_ATTRS = {
-    'id':       ('winner_id',          'loser_id'),
-    'rank':     ('winner_rank',        'loser_rank'),
-    'rank_pts': ('winner_rank_points', 'loser_rank_points'),
-    'seed':     ('winner_seed',        'loser_seed'),
-    'age':      ('winner_age',         'loser_age'),
-    'ht':       ('winner_ht',          'loser_ht'),
-    'hand':     ('winner_hand',        'loser_hand'),
-    'h2h':      ('winner_h2h',         'loser_h2h'),
+    'id':             ('winner_id',                'loser_id'),
+    'rank':           ('winner_rank',              'loser_rank'),
+    'rank_pts':       ('winner_rank_points',       'loser_rank_points'),
+    'seed':           ('winner_seed',              'loser_seed'),
+    'age':            ('winner_age',               'loser_age'),
+    'ht':             ('winner_ht',                'loser_ht'),
+    'hand':           ('winner_hand',              'loser_hand'),
+    'h2h':            ('winner_h2h',               'loser_h2h'),
+    'tourney_wins':   ('winner_tourney_wins',       'loser_tourney_wins'),
+    'tourney_titles': ('winner_tourney_titles',     'loser_tourney_titles'),
+    'tourney_matches':('winner_tourney_matches',    'loser_tourney_matches'),
 }
 
 
@@ -101,12 +104,18 @@ def _add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     """Add matchup-comparison features derived from A/B player columns.
 
     Args:
-        df: Dataset DataFrame with A_rank, A_rank_pts, B_rank, B_rank_pts columns.
+        df: Dataset DataFrame with A/B rank, rank_pts, and tourney columns.
     Returns:
-        df with rank_diff and rank_pts_diff columns appended.
+        df with rank_diff, rank_pts_diff, and tourney_win_rate columns appended.
     """
-    df['rank_diff']     = df['A_rank']     - df['B_rank']
-    df['rank_pts_diff'] = df['A_rank_pts'] - df['B_rank_pts']
+    df['rank_diff']       = df['A_rank']     - df['B_rank']
+    df['rank_pts_diff']   = df['A_rank_pts'] - df['B_rank_pts']
+    df['A_tourney_win_rate'] = (
+        df['A_tourney_wins'] / df['A_tourney_matches'].replace(0, np.nan)
+    ).fillna(0.0)
+    df['B_tourney_win_rate'] = (
+        df['B_tourney_wins'] / df['B_tourney_matches'].replace(0, np.nan)
+    ).fillna(0.0)
     return df
 
 

@@ -50,6 +50,9 @@ FEATURES = [
     'days_since_h2h',
     # Matchup comparison (derived)
     'rank_diff', 'rank_pts_diff',
+    # Tournament history
+    'A_tourney_titles', 'A_tourney_win_rate', 'A_tourney_matches',
+    'B_tourney_titles', 'B_tourney_win_rate', 'B_tourney_matches',
     # Player A — lagged surface stats
     'win_rate_A', 'completed_winrate_A', 'strsets_rate_A', 'tiebreaks_winrate_A',
     'rank_improvement_A', 'injured_during_swing_A', 'matches_played_A',
