@@ -18,6 +18,7 @@ no setup instructions.
 - Table has no hyperlinks — plain text skill names only
 - Table title is "Summary of Skills in Project"
 - Each skill section is always fully visible — no dropdown wrapper
+- Each skill header uses `##` (h2) — e.g. `## 1. Data Check`
 - Only the sample output is wrapped in a `<details>` dropdown
 
 ## Sample Output Format
@@ -80,7 +81,7 @@ pattern-match its way into a plausible but incorrect answer.
 
 ---
 
-**1. Data Check**
+## 1. Data Check
 
 **First principles:** {first principles reasoning}
 
@@ -97,7 +98,7 @@ pattern-match its way into a plausible but incorrect answer.
 
 ---
 
-**2. Prediction Report**
+## 2. Prediction Report
 
 **First principles:** {first principles reasoning}
 
@@ -114,7 +115,7 @@ pattern-match its way into a plausible but incorrect answer.
 
 ---
 
-**3. Player Tournament Prediction**
+## 3. Player Tournament Prediction
 
 **First principles:** {first principles reasoning}
 
@@ -131,7 +132,7 @@ pattern-match its way into a plausible but incorrect answer.
 
 ---
 
-**4. Refactoring**
+## 4. Refactoring
 
 **First principles:** {first principles reasoning}
 
@@ -148,7 +149,7 @@ pattern-match its way into a plausible but incorrect answer.
 
 ---
 
-**5. README Update**
+## 5. README Update
 
 **First principles:** {first principles reasoning}
 
