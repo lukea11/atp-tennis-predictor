@@ -8,12 +8,9 @@
 
 A Claude Skill is a markdown file that codifies a repeatable workflow — instructions an agent references to produce consistent, standardized output.
 
-**The skill is a bridge:**
-> Closing the gap between what Claude produces by default and what our standards actually require.
-
 Without a skill, Claude pattern-matches to what the output *historically looked like* — not what is *correct for our specific context.* This is dangerous in quantitative and data-driven work, where a convincing but slightly wrong formula still runs without errors, but produces wrong numbers.
 
-**Skills guardrail against this** by encoding first principles thinking directly into the instruction set — so Claude cannot pattern-match its way into a plausible but incorrect output.
+**Skills guardrail against this** by encoding first principles thinking directly into the instruction set — so Claude cannot pattern-match its way into a plausible but incorrect answer.
 
 ---
 
@@ -21,11 +18,11 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 
 | # | Skill | Purpose |
 |---|-------|---------|
-| 1 | [Data Check](#data-check) | Validate incoming ATP CSV data before cleaning |
-| 2 | [Prediction Report](#prediction-report) | Generate a signal report from feature importance scores |
-| 3 | [Player Tournament Prediction](#player-tournament-prediction) | Run a full Monte Carlo simulation for a player in a tournament |
-| 4 | [Refactoring](#refactoring) | Enforce loose coupling and single-source-of-truth |
-| 5 | [README Update](#readme-update) | Maintain this document to a consistent standard |
+| 1 | Data Check | Validate incoming ATP CSV data before cleaning |
+| 2 | Prediction Report | Generate a signal report from feature importance scores |
+| 3 | Player Tournament Prediction | Run a full Monte Carlo simulation for a player in a tournament |
+| 4 | Refactoring | Enforce loose coupling and single-source-of-truth |
+| 5 | README Update | Maintain this document to a consistent standard |
 
 ---
 
@@ -33,8 +30,6 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 <summary><strong>1. Data Check</strong></summary>
 
 **First principles:** ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. Without an explicit check at ingestion, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. By the time the model produces a wrong prediction, the source of the error is buried 3 files deep.
-
-The skill enforces a fixed contract: compare every column name and dtype against the expected schema, flag any deviation, and block the pipeline until the issue is resolved.
 
 **Invoke:** `run the data check skill`
 
@@ -53,7 +48,6 @@ Status: PASS
 ```
 
 </details>
-
 </details>
 
 ---
@@ -62,8 +56,6 @@ Status: PASS
 <summary><strong>2. Prediction Report</strong></summary>
 
 **First principles:** Feature importance numbers exist in `feature_importance.csv` — they are the ground truth. Without a skill, an LLM will pattern-match to what a "typical" feature importance report looks like and invent plausible-sounding weights and feature names that do not match the actual file. In a 69-feature model, this error is undetectable without cross-referencing the source.
-
-The skill reads directly from `feature_importance.csv`, computes each feature's share of total XGBoost information gain, and maps code names to human-readable tennis descriptions. No estimation — every number is derived from the file.
 
 **Invoke:** `invoke the prediction report skill`
 
@@ -85,7 +77,6 @@ Top 5 Signals:
 ```
 
 </details>
-
 </details>
 
 ---
@@ -95,7 +86,7 @@ Top 5 Signals:
 
 **First principles:** A tournament bracket has hard structural constraints — each player occupies exactly one section of the draw relative to the target player, so the same opponent cannot appear in two different rounds. Without explicit rules, an LLM generates probability estimates and opponent lists that look realistic but violate these constraints. The skill also enforces a model cutoff rule: a tournament in year Y must use a model trained only on data through year Y−1, otherwise the simulation leaks future match outcomes into the prediction.
 
-**Invoke:** Natural language trigger — e.g. `Medvedev Australian Open 2024` or `simulate Djokovic Roland Garros 2023`
+**Invoke:** `Medvedev Australian Open 2024` or `simulate Djokovic Roland Garros 2023`
 
 <details>
 <summary><strong>Sample output</strong></summary>
@@ -140,7 +131,6 @@ Djokovic — drops his tournament win ceiling to 11%.
 ```
 
 </details>
-
 </details>
 
 ---
@@ -161,12 +151,12 @@ Refactoring Report
 What was refactored: H2H last-5 feature implementation
 
 Files affected:
-| File                | Change                                              | Reason                                      |
-|---------------------|-----------------------------------------------------|---------------------------------------------|
-| src/features.py     | _update_h2h now tracks last5 deque                  | Single source of truth for all H2H state    |
-| src/simulator.py    | compute_h2h_lookup returns (surface_h2h, overall_h2h) tuple | Mirrors features.py convention; no logic duplication |
-| src/build_dataset.py | Added h2h_last5 / h2h_last5_surface to PLAYER_ATTRS | One place defines what columns map to A/B   |
-| models/train_xgb.py | Added 4 new features after days_since_h2h           | FEATURES list is the single source of column order |
+| File                 | Change                                                       | Reason                                             |
+|----------------------|--------------------------------------------------------------|----------------------------------------------------|
+| src/features.py      | _update_h2h now tracks last5 deque                          | Single source of truth for all H2H state           |
+| src/simulator.py     | compute_h2h_lookup returns (surface_h2h, overall_h2h) tuple | Mirrors features.py convention; no duplication     |
+| src/build_dataset.py | Added h2h_last5 / h2h_last5_surface to PLAYER_ATTRS         | One place defines what columns map to A/B          |
+| models/train_xgb.py  | Added 4 new features after days_since_h2h                   | FEATURES list is the single source of column order |
 
 Before vs After:
 - Before: H2H state tracked surface-only wins; last-5 required re-scanning all history
@@ -179,7 +169,6 @@ What this enables:
 ```
 
 </details>
-
 </details>
 
 ---
@@ -195,19 +184,18 @@ What this enables:
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: readme-update skill updated with per-skill dropdowns
-               and visible table of contents
+Invoked after: readme-update skill updated with plain numbered TOC
+               and full README structure template
 
 Changes made:
-  - Table of contents kept always visible with skill numbers
-  - Each skill section wrapped in a numbered <details> dropdown
-  - Sample output remains as nested <details> inside each skill
-  - "What are Claude Skills?" section kept as plain visible text
+  - Table of contents converted to plain numbered list (no hyperlinks)
+  - Each skill section in a numbered <details> dropdown
+  - Sample output nested inside each skill dropdown
+  - "What are Claude Skills?" kept as always-visible plain text
 
 Skills section verified: all 5 skills present with first principles,
 invoke command, and sample output — TOC visible, content collapsed.
 ```
 
 </details>
-
 </details>
