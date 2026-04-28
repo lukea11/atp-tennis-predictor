@@ -12,7 +12,14 @@ no setup instructions.
 - Always frame skills as guardrails against LLM pattern-matching
 - Never include project technical details unless directly 
   relevant to explaining a skill
-- Do not talk about anything else other than skills, only focus on skills, so no need to talk about pipelines, project structure, no hyperparameter talk, no need feature categories, no need top features
+- Do not talk about anything else other than skills, only focus on skills,
+  so no need to talk about pipelines, project structure, no hyperparameter 
+  talk, no need feature categories, no need top features
+- Wrap each individual skill section in a <details> dropdown
+- Number each skill in both the table of contents and the dropdown header
+- Table of contents remains always visible — only skill content is hidden
+- Every skill is collapsed by default
+- Sample output is a nested <details> dropdown inside the skill dropdown
 
 ## Sample Output Format
 Wrap every skill in a `<details>` dropdown:
