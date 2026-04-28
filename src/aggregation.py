@@ -168,7 +168,7 @@ def _year_ranks(pv: pd.DataFrame) -> pd.DataFrame:
         .agg(start_rank=("rank", "first"), end_rank=("rank", "last"))
         .reset_index()
     )
-    yr["rank_improvement"] = yr["end_rank"] - yr["start_rank"]
+    yr["rank_improvement"] = yr["start_rank"] - yr["end_rank"]
     return yr
 
 
