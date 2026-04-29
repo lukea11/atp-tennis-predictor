@@ -6,11 +6,11 @@
 
 ## What are Claude Skills?
 
-A Claude Skill is a markdown file that orchestrates a repeatable workflow — freeing us to focus on core problem-solving while routine tasks execute consistently according to defined specifications.
+A Claude Skill is a markdown file that orchestrates a repeatable workflow, allowing us to focus on core problem-solving while routine tasks execute consistently according to defined specifications.
 
-Without a skill, Claude pattern-matches to what the output *historically looked like* — not what is *correct for our specific context.* In quantitative and data-driven work, this is how silent errors happen: a plausible but slightly wrong formula runs without raising an exception, but produces wrong numbers.
+Without a skill with specified structure, LLM outputs may be plausible but misaligned with the underlying data or context. In quantitative settings, this can lead to silent errors: results that run successfully but are incorrect.
 
-**Skills guardrail against this** by encoding first principles thinking directly into the instruction set — so Claude cannot pattern-match its way into a plausible but incorrect answer.
+**Skills can guardrail against this** by us encoding first-principles reasoning and explicit constraints into the workflow, ensuring outputs are reproducible, verifiable, and grounded in the correct data and logic.
 
 ---
 
@@ -213,13 +213,15 @@ This skill defines a fixed template so each invocation produces the same section
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: What are Claude Skills? description updated
+Invoked after: What are Claude Skills? description refined
 
 Changes made:
-  - Reframed skills description: "orchestrates a repeatable workflow —
-    freeing us to focus on core problem-solving" replaces generic codifies
-  - Silent errors made concrete: "a plausible but slightly wrong formula
-    runs without raising an exception, but produces wrong numbers"
+  - "orchestrates a repeatable workflow, allowing us to focus on core
+    problem-solving" — positions skills as workflow orchestration
+  - Silent errors reframed: "LLM outputs may be plausible but misaligned
+    with the underlying data or context"
+  - Guardrail line updated: "Skills can guardrail against this by us
+    encoding first-principles reasoning and explicit constraints"
   - readme-update skill template updated to match
   - README refreshed to match updated template
 
