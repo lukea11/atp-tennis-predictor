@@ -39,7 +39,11 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 
 ## 1. Data Check
 
-**First principles:** ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. Without an explicit check at ingestion, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. By the time the model produces a wrong prediction, the source of the error is buried 3 files deep.
+**First principles:** ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. 
+
+Without an explicit check at ingestion compared to data from previous years, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. 
+
+By the time the model produces a wrong prediction, the source of the error is buried 3 files deep.
 
 **Invoke:** `run the data check skill`
 
