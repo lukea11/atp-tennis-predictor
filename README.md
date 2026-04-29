@@ -63,7 +63,12 @@ Status: PASS
 
 ## 2. Prediction Report
 
-**First principles:** Feature importance numbers exist in `feature_importance.csv` — they are the ground truth. Without a skill, an LLM will pattern-match to what a "typical" feature importance report looks like and invent plausible-sounding weights and feature names that do not match the actual file. In a 69-feature model, this error is undetectable without cross-referencing the source.
+**First principles:** Model outputs are only useful if they are consistently structured and interpretable. 
+
+This skill enforces a fixed reporting structure so every model produces a decision-ready summary of both configuration and learned signals:
+- a consistent set of core hyperparameters
+- a standardised view of model performance
+- a ranked list of top signals for interpretation
 
 **Invoke:** `invoke the prediction report skill`
 
@@ -146,7 +151,7 @@ Djokovic — drops his tournament win ceiling to 11%.
 
 Without a single source of truth, updates can be missed: features can exist in one file but not another, column mismatches silently introduce NaNs and errors only appear during model training.
 
-This skill enforces a single source of truth for features and shared logic, so that:
+This skill enforces for us, a single source of truth for features and shared logic, so that:
 - each feature is defined in only one place
 - all downstream components reference that definition
 - adding or modifying a feature only requires changing only one file
