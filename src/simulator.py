@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import subprocess
 import sys
 import numpy as np
 import pandas as pd
@@ -23,6 +24,11 @@ from features import TOURNEY_COUNTRY
 
 AGG_DIR   = Path(__file__).parent.parent / "data" / "aggregated"
 MODEL_DIR = Path(__file__).parent.parent / "models"
+
+# Year through which the default xgb_model.json was trained.
+# Tournaments after this year use the default model; earlier tournaments
+# get a date-specific model trained on all matches before the tournament.
+_DEFAULT_MODEL_YEAR = 2023
 
 # Must match train_xgb.py FEATURES exactly — model expects this column order.
 FEATURES = [
@@ -554,6 +560,39 @@ def _compile_results(
     }
 
 
+# ── Model selection ────────────────────────────────────────────────────────────
+
+def _ensure_model(info: dict, model_path_override: Path = None) -> Path:
+    """Return the model path to use, training a date-specific model if needed.
+
+    For tournaments within the training window, builds (if absent) a model
+    trained on all matches before the tournament start date so that results
+    from tournaments immediately before (e.g. Rome → Roland Garros) are used.
+    Falls back to the default model for tournaments beyond the training window.
+
+    Args:
+        info: Tournament info dict with 'date' key.
+        model_path_override: Explicit path; bypasses auto-selection when set.
+    Returns:
+        Path to the model JSON to load.
+    """
+    if model_path_override:
+        return model_path_override
+    if info['date'].year > _DEFAULT_MODEL_YEAR:
+        return MODEL_DIR / 'xgb_model.json'
+    date_str   = info['date'].strftime('%Y%m%d')
+    dated_path = MODEL_DIR / f'xgb_model_thru{date_str}.json'
+    if not dated_path.exists():
+        print(f"Training model with cutoff {info['date'].date()} (~2 min)...",
+              file=sys.stderr)
+        subprocess.run(
+            [sys.executable, str(MODEL_DIR / 'train_xgb.py'),
+             '--train-through-date', info['date'].strftime('%Y-%m-%d')],
+            check=True,
+        )
+    return dated_path
+
+
 # ── Main entry point ───────────────────────────────────────────────────────────
 
 def run_simulation(
@@ -586,10 +625,10 @@ def run_simulation(
     """
     cleaned_df = load_cleaned(cleaned_path)
     agg_df     = pd.read_csv(agg_path or AGG_DIR / 'player_surface_year_stats.csv')
-    model      = load_model(model_path)
 
     tourney_df = find_tournament(cleaned_df, tourney_name, year)
     info       = tournament_info(tourney_df)
+    model      = load_model(_ensure_model(info, model_path))
     tree       = build_bracket_tree(tourney_df)
     draw_attrs = extract_player_attrs(tourney_df)
     target_id  = _resolve_player(target_name, draw_attrs)

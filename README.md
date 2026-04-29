@@ -101,8 +101,8 @@ Top 5 Signals (Paired):
 
 **First principles:** Tournament simulation must satisfy **Temporal validity**
 - Predictions must be based only on information available at the time.
-- A tournament in year Y must use a model trained on data up to year Y−1, otherwise future match outcomes leak into the prediction.
-- The skill enforces this by ensuring the correct train–test split is applied during simulation, preventing any leakage of future information.
+- A tournament's model must be trained on all matches before that tournament starts — not just the prior year. Rome results should inform Roland Garros predictions.
+- The skill enforces this by using a date-specific model trained on all matches with `tourney_date < tournament start date`, automatically built if absent.
 
 **Standardised Output design:**
 The skill standardises how results are presented, ensuring outputs are interpretable and directly usable for decisions such as player selection and match outcome evaluation.
@@ -213,17 +213,16 @@ This skill defines a fixed template so each invocation produces the same section
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: What are Claude Skills? description refined
+Invoked after: date-based model cutoff implemented
 
 Changes made:
-  - "orchestrates a repeatable workflow, allowing us to focus on core
-    problem-solving" — positions skills as workflow orchestration
-  - Silent errors reframed: "LLM outputs may be plausible but misaligned
-    with the underlying data or context"
-  - Guardrail line updated: "Skills can guardrail against this by us
-    encoding first-principles reasoning and explicit constraints"
-  - readme-update skill template updated to match
-  - README refreshed to match updated template
+  - Skill 3 first principles: model cutoff is now tournament start date,
+    not year Y-1 — Rome results inform Roland Garros predictions
+  - train_xgb.py: added --train-through-date flag for date-based training
+  - simulator.py: added _ensure_model — auto-selects or trains a
+    date-specific model (xgb_model_thruYYYYMMDD.json) before each run
+  - Simulation skill: model selection removed from process steps;
+    simulator now handles it automatically
 
 Skills section verified: all 5 skills present with first principles,
 invoke command, and sample output dropdown.

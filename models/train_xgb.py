@@ -115,23 +115,31 @@ def load_splits(
     path: Path,
     train_years: list = None,
     val_years: list = None,
+    cutoff_date: pd.Timestamp = None,
 ) -> tuple:
-    """Load dataset and split into train and val by year.
+    """Load dataset and split into train and val by year or cutoff date.
 
     Args:
         path: Path to model_dataset.csv.
         train_years: Years to include in training (default TRAIN_YEARS).
         val_years: Years to include in validation (default VAL_YEARS).
+        cutoff_date: If provided, train on matches before this date;
+                     validation uses the following calendar year.
     Returns:
         Tuple (X_train, X_val, y_train, y_val, train_year_series).
     """
-    if train_years is None:
-        train_years = TRAIN_YEARS
-    if val_years is None:
-        val_years = VAL_YEARS
-    df    = pd.read_csv(path)
-    train = df[df['year'].isin(train_years)]
-    val   = df[df['year'].isin(val_years)]
+    df = pd.read_csv(path)
+    if cutoff_date is not None:
+        df['tourney_date'] = pd.to_datetime(df['tourney_date'])
+        train = df[df['tourney_date'] < cutoff_date]
+        val   = df[df['year'] == cutoff_date.year + 1]
+    else:
+        if train_years is None:
+            train_years = TRAIN_YEARS
+        if val_years is None:
+            val_years = VAL_YEARS
+        train = df[df['year'].isin(train_years)]
+        val   = df[df['year'].isin(val_years)]
     return (
         train[FEATURES], val[FEATURES],
         train['label'],  val['label'],
@@ -301,23 +309,29 @@ def save_outputs(
     imp: pd.DataFrame,
     best_params: dict,
     grid_results: pd.DataFrame,
-    train_through: int,
+    train_through: int = None,
+    cutoff_date: pd.Timestamp = None,
 ) -> None:
     """Save model, feature importance, best params, and full grid results.
 
-    When train_through matches the default (last element of TRAIN_YEARS), the
-    canonical filenames are used. Otherwise a dated suffix is appended so the
-    main model is never overwritten.
+    When cutoff_date is provided, appends a YYYYMMDD suffix. When
+    train_through matches the default, canonical filenames are used.
 
     Args:
         model: Best fitted XGBClassifier.
         imp: Feature importance DataFrame.
         best_params: Best hyperparameter dict.
         grid_results: Full grid search results DataFrame.
-        train_through: Last training year; used to build dated filenames.
+        train_through: Last training year; used when cutoff_date is None.
+        cutoff_date: Tournament cutoff date; used to build dated filenames.
     """
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    suffix = '' if train_through == TRAIN_YEARS[-1] else f'_thru{train_through}'
+    if cutoff_date is not None:
+        suffix = f'_thru{cutoff_date.strftime("%Y%m%d")}'
+    elif train_through is not None and train_through != TRAIN_YEARS[-1]:
+        suffix = f'_thru{train_through}'
+    else:
+        suffix = ''
     model.save_model(MODEL_DIR / f'xgb_model{suffix}.json')
     imp.to_csv(MODEL_DIR / f'feature_importance{suffix}.csv', index=False)
     grid_results.to_csv(MODEL_DIR / f'grid_search_results{suffix}.csv', index=False)
@@ -332,28 +346,44 @@ if __name__ == '__main__':
         description='Train XGBoost match predictor.'
     )
     parser.add_argument(
-        '--train-through', type=int, default=TRAIN_YEARS[-1],
+        '--train-through', type=int, default=None,
         help=f'Last year to include in training (default {TRAIN_YEARS[-1]}). '
              'Validation year = train-through + 1.',
     )
+    parser.add_argument(
+        '--train-through-date', type=str, default=None,
+        help='Train on all matches before this date (YYYY-MM-DD). '
+             'Validation uses the following calendar year. '
+             'Produces xgb_model_thruYYYYMMDD.json.',
+    )
     args = parser.parse_args()
 
-    train_through = args.train_through
-    train_years   = list(range(TRAIN_YEARS[0], train_through + 1))
-    val_years     = [train_through + 1]
+    cutoff_date   = pd.to_datetime(args.train_through_date) if args.train_through_date else None
+    train_through = args.train_through or TRAIN_YEARS[-1]
 
-    X_train, X_val, y_train, y_val, tr_years = load_splits(
-        PROC_DIR / 'model_dataset.csv',
-        train_years=train_years,
-        val_years=val_years,
-    )
+    if cutoff_date is not None:
+        X_train, X_val, y_train, y_val, tr_years = load_splits(
+            PROC_DIR / 'model_dataset.csv', cutoff_date=cutoff_date,
+        )
+        val_label = str(cutoff_date.year + 1)
+        train_label = f'up to {cutoff_date.date()}'
+    else:
+        train_years = list(range(TRAIN_YEARS[0], train_through + 1))
+        val_years   = [train_through + 1]
+        X_train, X_val, y_train, y_val, tr_years = load_splits(
+            PROC_DIR / 'model_dataset.csv',
+            train_years=train_years, val_years=val_years,
+        )
+        val_label   = str(val_years[0])
+        train_label = f'{train_years[0]}-{train_through}'
+
     X_train, y_train, tr_years = mirror_augment(X_train, y_train, tr_years)
 
-    print(f'Train years: {train_years}  Val years: {val_years}')
-    print(f'Train: {len(X_train):,} (augmented)  Val: {len(X_val):,}')
+    print(f'Train: {train_label}  Val: {val_label}')
+    print(f'Train: {len(X_train):,} rows (augmented)  Val: {len(X_val):,} rows')
     print('Year weights (decay previewed at each decay_rate candidate):')
     for dr in PARAM_GRID['decay_rate']:
-        by_yr = {yr: round(dr ** (max(train_years) - yr), 3)
+        by_yr = {yr: round(dr ** (tr_years.max() - yr), 3)
                  for yr in sorted(tr_years.unique())}
         print(f'  decay={dr}: {by_yr}')
 
@@ -365,8 +395,9 @@ if __name__ == '__main__':
     for k, v in best_params.items():
         print(f'  {k:<22} {v}')
 
-    evaluate(best_model, X_train, y_train, f'Train {train_years[0]}-{train_through}')
-    evaluate(best_model, X_val,   y_val,   f'Val   {val_years[0]}')
+    evaluate(best_model, X_train, y_train, f'Train {train_label}')
+    evaluate(best_model, X_val,   y_val,   f'Val   {val_label}')
 
     imp = feature_importance(best_model)
-    save_outputs(best_model, imp, best_params, grid_results, train_through)
+    save_outputs(best_model, imp, best_params, grid_results,
+                 train_through=train_through, cutoff_date=cutoff_date)

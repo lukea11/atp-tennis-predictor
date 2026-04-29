@@ -33,35 +33,29 @@ Every data source is cut off at the tournament start date — no future informat
 
 | Data source | Cutoff |
 |---|---|
-| Model training | All seasons up to year Y−1 |
+| Model training | All matches with `tourney_date < tournament start date` |
 | Lagged serve/win stats | Full prior-year surface aggregates (year Y−1) |
 | H2H record | All matches with `tourney_date < tournament start date` |
 | Form (streak, wins_last5) | All matches with `tourney_date < tournament start date` |
 | Tournament history | All editions with `tourney_date < tournament start date` |
 
-The simulator enforces these cutoffs automatically. The model cutoff requires the correct model file:
+The simulator enforces all cutoffs automatically. For model training, it
+checks for a date-specific model (`xgb_model_thruYYYYMMDD.json`) and trains
+one if absent — so results from the tournament immediately before (e.g. Rome)
+are included when predicting the next (e.g. Roland Garros). Tournaments
+beyond the default training window use the default model.
 
-- Default model (`models/xgb_model.json`) was trained through 2023.
-- For a tournament in year Y, `cutoff = year − 1`.
-- If `cutoff < 2023`: check whether `models/xgb_model_thru{cutoff}.json` exists.
-  - If it does NOT exist, run:
-    ```
-    python3 models/train_xgb.py --train-through {cutoff}
-    ```
-    (produces `models/xgb_model_thru{cutoff}.json`; expect ~2 minutes)
-  - Then pass `--model-path models/xgb_model_thru{cutoff}.json` to the simulator.
-- If `cutoff >= 2023`: use the default model (no flag needed).
+Note: lagged serve/win stats remain full prior-year aggregates (year Y−1),
+consistent with how the model was trained — a known limitation.
 
 ## Process
-1. Apply the model cutoff rule above.
-
-2. Run the simulation:
+1. Run the simulation (model selection is automatic):
    ```
    python3 src/simulator.py "<player_name>" "<tournament_name>" <year> \
-       --n-sims <n_sims> [--model-path models/xgb_model_thru{cutoff}.json]
+       --n-sims <n_sims>
    ```
 
-3. Parse the JSON output. Extract:
+2. Parse the JSON output. Extract:
    - `actual_path` — use `actual_path['R128']` (or the first round) for the fixed draw opponent
    - `opponent_counts` — for top-2 opponents per round (by simulation frequency)
    - `round_probs` — compute P(win) for each round as a conditional probability:
