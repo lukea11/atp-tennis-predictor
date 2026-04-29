@@ -149,7 +149,10 @@ Djokovic — drops his tournament win ceiling to 11%.
 
 **First principles:** In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files. 
 
-Without a single source of truth, updates can be missed: features can exist in one file but not another, column mismatches silently introduce NaNs and errors only appear during model training.
+Without a single source of truth, updates can be missed: 
+- features can exist in one file but not another
+- column mismatches silently introduce NaNs
+- errors only appear during model training.
 
 This skill enforces for us, a single source of truth for features and shared logic, so that:
 - each feature is defined in only one place
@@ -190,7 +193,12 @@ What this enables:
 
 ## 5. README Update
 
-**First principles:** Without a prescribed structure, README content drifts toward generic project conventions — setup guides, architecture diagrams, hyperparameter tables — none of which communicate what is actually distinctive about the project. The skill defines a fixed template so each invocation produces the same sections in the same order, and mandates that technical details are excluded unless they directly explain a skill.
+**First principles:** Without a prescribed structure, README content drifts toward generic project conventions that does not communicate what is actually distinctive about the project:
+- setup guides
+- architecture diagrams
+- hyperparameter tables
+
+This skill defines a fixed template so each invocation produces the same sections in the same order, and mandates that technical details are excluded unless they directly explain a skill.
 
 **Invoke:** `invoke the readme update skill`
 
