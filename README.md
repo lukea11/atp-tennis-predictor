@@ -102,7 +102,7 @@ Top 5 Signals (Paired):
 **First principles:** Tournament simulation must satisfy **Temporal validity**
 - Predictions must be based only on information available at the time.
 - A tournament's model must be trained on all matches before that tournament starts — not just the prior year. Rome results should inform Roland Garros predictions.
-- The skill enforces this by using a date-specific model trained on all matches with `tourney_date < tournament start date`, automatically built if absent.
+- The skill enforces this by using a date-specific model trained on all matches with `tourney_date < selected_tourney_start_date`.
 
 **Standardised Output design:**
 The skill standardises how results are presented, ensuring outputs are interpretable and directly usable for decisions such as player selection and match outcome evaluation.
