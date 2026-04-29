@@ -193,10 +193,7 @@ What this enables:
 
 ## 5. README Update
 
-**First principles:** Without a prescribed structure, README content drifts toward generic project conventions that does not communicate what is actually distinctive about the project:
-- setup guides
-- architecture diagrams
-- hyperparameter tables
+**First principles:** This project is about showcasing the use of Claude AI Skills. Without a prescribed structure, README content drifts toward generic project conventions that does not communicate what is actually distinctive about the project: setup guides, architecture diagrams and hyperparameter tables.
 
 This skill defines a fixed template so each invocation produces the same sections in the same order, and mandates that technical details are excluded unless they directly explain a skill.
 
