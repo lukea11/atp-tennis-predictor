@@ -99,9 +99,15 @@ Top 5 Signals (Paired):
 
 ## 3. Player Tournament Prediction
 
-**First principles:** A tournament bracket has hard structural constraints — each player occupies exactly one section of the draw relative to the target player, so the same opponent cannot appear in two different rounds. Without explicit rules, an LLM generates probability estimates and opponent lists that look realistic but violate these constraints. The skill also enforces a model cutoff rule: a tournament in year Y must use a model trained only on data through year Y−1, otherwise the simulation leaks future match outcomes into the prediction.
+**First principles:** Tournament simulation must satisfy **Temporal validity**  
+- Predictions must be based only on information available at the time.
+- A tournament in year Y must use a model trained on data up to year Y−1, otherwise future match outcomes leak into the prediction.
+- The skill enforces this by ensuring the correct train–test split is applied during simulation, preventing any leakage of future information.
 
-**Invoke:** `Medvedev Australian Open 2024` or `simulate Djokovic Roland Garros 2023`
+**Standardised Output design:**
+The skill standardises how results are presented, ensuring outputs are interpretable and directly usable for decisions such as player selection and match outcome evaluation.
+
+**Invoke:** `Medvedev Australian Open 2024` or `Simulate Djokovic Roland Garros 2023`
 
 <details>
 <summary><strong>Sample output</strong></summary>
