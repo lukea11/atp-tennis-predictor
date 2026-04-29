@@ -33,15 +33,15 @@ no setup instructions.
 
 ## What are Claude Skills?
 
-A Claude Skill is a markdown file that codifies a repeatable
-workflow — instructions an agent references to produce
-consistent, standardized output.
+A Claude Skill is a markdown file that orchestrates a repeatable
+workflow — freeing us to focus on core problem-solving while
+routine tasks execute consistently according to defined specifications.
 
 Without a skill, Claude pattern-matches to what the output
 *historically looked like* — not what is *correct for our
-specific context.* This is dangerous in quantitative and
-data-driven work, where a convincing but slightly wrong
-formula still runs without errors, but produces wrong numbers.
+specific context.* In quantitative and data-driven work, this
+is how silent errors happen: a plausible but slightly wrong
+formula runs without raising an exception, but produces wrong numbers.
 
 **Skills guardrail against this** by encoding first principles
 thinking directly into the instruction set — so Claude cannot

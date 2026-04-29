@@ -6,9 +6,9 @@
 
 ## What are Claude Skills?
 
-A Claude Skill is a markdown file that codifies a repeatable workflow — instructions an agent references to produce consistent, standardized output.
+A Claude Skill is a markdown file that orchestrates a repeatable workflow — freeing us to focus on core problem-solving while routine tasks execute consistently according to defined specifications.
 
-Without a skill, Claude pattern-matches to what the output *historically looked like* — not what is *correct for our specific context.* This is dangerous in quantitative and data-driven work, where a convincing but slightly wrong formula still runs without errors, but produces wrong numbers.
+Without a skill, Claude pattern-matches to what the output *historically looked like* — not what is *correct for our specific context.* In quantitative and data-driven work, this is how silent errors happen: a plausible but slightly wrong formula runs without raising an exception, but produces wrong numbers.
 
 **Skills guardrail against this** by encoding first principles thinking directly into the instruction set — so Claude cannot pattern-match its way into a plausible but incorrect answer.
 
@@ -213,16 +213,14 @@ This skill defines a fixed template so each invocation produces the same section
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: simulation skill and readme-update skill updated
+Invoked after: What are Claude Skills? description updated
 
 Changes made:
-  - Simulation skill: fixed duplicate step, removed incorrect build_feature_row
-    call — P(win) now correctly derived from round_probs as conditional probability
-  - Simulation skill: renamed section to Temporal validity with explicit cutoff
-    table covering all data sources (H2H, form, tourney history, lagged stats)
-  - README Update skill: removed contradictory Sample Output Format block
-  - README Update skill: added project tagline, fixed Pipeline Integration row 4
-  - README Update skill: first principles text filled in for section 5
+  - Reframed skills description: "orchestrates a repeatable workflow —
+    freeing us to focus on core problem-solving" replaces generic codifies
+  - Silent errors made concrete: "a plausible but slightly wrong formula
+    runs without raising an exception, but produces wrong numbers"
+  - readme-update skill template updated to match
   - README refreshed to match updated template
 
 Skills section verified: all 5 skills present with first principles,
