@@ -27,21 +27,30 @@ If `find_tournament` raises ValueError with "No tournament found":
 If it raises "Ambiguous":
 → Reply: "Multiple tournaments match '[name]': [list]. Be more specific."
 
-## Model cutoff rule (no leakage)
+## Temporal validity (no leakage)
 
-For a tournament in year Y, the model must have been trained on data up to year
-Y-1 only. The default model (`models/xgb_model.json`) was trained through 2023.
+Every data source is cut off at the tournament start date — no future information enters the simulation:
 
-Before running the simulation:
-1. Determine `cutoff = year - 1`.
-2. If `cutoff < 2023`: check whether `models/xgb_model_thru{cutoff}.json` exists.
-   - If it does NOT exist, run:
-     ```
-     python3 models/train_xgb.py --train-through {cutoff}
-     ```
-     (this produces `models/xgb_model_thru{cutoff}.json`; expect ~2 minutes)
-   - Then pass `--model-path models/xgb_model_thru{cutoff}.json` to the simulator.
-3. If `cutoff >= 2023`: use the default model (no flag needed).
+| Data source | Cutoff |
+|---|---|
+| Model training | All seasons up to year Y−1 |
+| Lagged serve/win stats | Full prior-year surface aggregates (year Y−1) |
+| H2H record | All matches with `tourney_date < tournament start date` |
+| Form (streak, wins_last5) | All matches with `tourney_date < tournament start date` |
+| Tournament history | All editions with `tourney_date < tournament start date` |
+
+The simulator enforces these cutoffs automatically. The model cutoff requires the correct model file:
+
+- Default model (`models/xgb_model.json`) was trained through 2023.
+- For a tournament in year Y, `cutoff = year − 1`.
+- If `cutoff < 2023`: check whether `models/xgb_model_thru{cutoff}.json` exists.
+  - If it does NOT exist, run:
+    ```
+    python3 models/train_xgb.py --train-through {cutoff}
+    ```
+    (produces `models/xgb_model_thru{cutoff}.json`; expect ~2 minutes)
+  - Then pass `--model-path models/xgb_model_thru{cutoff}.json` to the simulator.
+- If `cutoff >= 2023`: use the default model (no flag needed).
 
 ## Process
 1. Apply the model cutoff rule above.
@@ -51,15 +60,18 @@ Before running the simulation:
    python3 src/simulator.py "<player_name>" "<tournament_name>" <year> \
        --n-sims <n_sims> [--model-path models/xgb_model_thru{cutoff}.json]
    ```
-   Parse the JSON output.
 
-2. Get per-round win probabilities by calling `build_feature_row` for the
-   likely opponent in each round and using `predict_proba` from the model.
-   For the actual R128 opponent (known from the draw): compute exact win prob.
-   For subsequent rounds: use the simulation opponent counts to find the top 2
-   most frequent opponents.
+3. Parse the JSON output. Extract:
+   - `actual_path` — use `actual_path['R128']` (or the first round) for the fixed draw opponent
+   - `opponent_counts` — for top-2 opponents per round (by simulation frequency)
+   - `round_probs` — compute P(win) for each round as a conditional probability:
+     `P(win round R) = round_probs[next_round] / round_probs[R]`
+     For the final round: `P(win) = win_probability`
+   - `win_probability` — overall tournament win probability
+   - `expected_exit` — expected exit round
+   - `draw_attrs` — player feature values for citation in commentary
 
-3. Format the report as described below.
+4. Format the report as described below.
 
 ## Opponent display rules
 - **R128**: Show actual draw opponent (or BYE). Always 1 opponent — it's fixed by the draw.

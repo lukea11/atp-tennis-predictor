@@ -21,36 +21,15 @@ no setup instructions.
 - Each skill section is always fully visible — no dropdown wrapper
 - Each skill header uses `##` (h2) — e.g. `## 1. Data Check`
 - Only the sample output is wrapped in a `<details>` dropdown
-
-## Sample Output Format
-Only the sample output gets a dropdown:
-
-```
-**N. Skill Name**
-
-**First principles:** ...
-
-**Invoke:** `command here`
-
-<details>
-<summary><strong>Sample output</strong></summary>
-
-\`\`\`
-...output here...
-\`\`\`
-
-</details>
-
----
-```
-
----
+- Each skill section may include additional labeled paragraphs (e.g. `**Standardised Output design:**`) between First principles and Invoke — preserve these if present in the current README
 
 ## README Structure
 
 ---
 
 # {Project Name}
+
+> {One-line description of what the project does and the model/data it uses.}
 
 ## What are Claude Skills?
 
@@ -89,7 +68,7 @@ pattern-match its way into a plausible but incorrect answer.
 | 1 | Ingestion | Data Check Skill (blocking) |
 | 2 | Feature Generation | Refactoring Skill enforced |
 | 3 | Training | Prediction Report Skill auto-generated |
-| 4 | Simulation | Tournament Skill invoked |
+| 4 | Simulation | Player-Tournament Prediction Skill invoked |
 
 ---
 
@@ -163,7 +142,9 @@ pattern-match its way into a plausible but incorrect answer.
 
 ## 5. README Update
 
-**First principles:** {first principles reasoning}
+**First principles:** This project is about showcasing the use of Claude AI Skills. Without a prescribed structure, README content drifts toward generic project conventions that do not communicate what is actually distinctive about the project: setup guides, architecture diagrams and hyperparameter tables.
+
+This skill defines a fixed template so each invocation produces the same sections in the same order, and mandates that technical details are excluded unless they directly explain a skill.
 
 **Invoke:** `{command}`
 
