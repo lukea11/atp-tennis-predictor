@@ -39,9 +39,9 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 
 ## 1. Data Check
 
-**First principles:** ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed. 
+**First principles:** ATP match CSVs change silently between years — new columns appear, dtypes shift, columns are renamed.
 
-Without an explicit check at ingestion compared to data from previous years, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message. 
+Without an explicit check at ingestion compared to data from previous years, these changes propagate invisibly through a 5-step pipeline and corrupt features with no error message.
 
 By the time the model produces a wrong prediction, the source of the error is buried 3 files deep.
 
@@ -67,7 +67,7 @@ Status: PASS
 
 ## 2. Prediction Report
 
-**First principles:** Model outputs are only useful if they are consistently structured and interpretable. 
+**First principles:** Model outputs are only useful if they are consistently structured and interpretable.
 
 This skill enforces a fixed reporting structure so every model produces a decision-ready summary of both configuration and learned signals:
 - a consistent set of core hyperparameters
@@ -99,7 +99,7 @@ Top 5 Signals (Paired):
 
 ## 3. Player Tournament Prediction
 
-**First principles:** Tournament simulation must satisfy **Temporal validity**  
+**First principles:** Tournament simulation must satisfy **Temporal validity**
 - Predictions must be based only on information available at the time.
 - A tournament in year Y must use a model trained on data up to year Y−1, otherwise future match outcomes leak into the prediction.
 - The skill enforces this by ensuring the correct train–test split is applied during simulation, preventing any leakage of future information.
@@ -157,17 +157,17 @@ Djokovic — drops his tournament win ceiling to 11%.
 
 ## 4. Refactoring
 
-**First principles:** In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files. 
+**First principles:** In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files.
 
-Without a single source of truth, updates can be missed: 
+Without a single source of truth, updates can be missed:
 - features can exist in one file but not another
 - column mismatches silently introduce NaNs
-- errors only appear during model training.
+- errors only appear during model training
 
-This skill enforces for us, a single source of truth for features and shared logic, so that:
+This skill enforces a single source of truth for features and shared logic, so that:
 - each feature is defined in only one place
 - all downstream components reference that definition
-- adding or modifying a feature only requires changing only one file
+- adding or modifying a feature requires changing only one file
 
 **Invoke:** `invoke the refactoring skill`
 
@@ -203,7 +203,7 @@ What this enables:
 
 ## 5. README Update
 
-**First principles:** This project is about showcasing the use of Claude AI Skills. Without a prescribed structure, README content drifts toward generic project conventions that does not communicate what is actually distinctive about the project: setup guides, architecture diagrams and hyperparameter tables.
+**First principles:** This project is about showcasing the use of Claude AI Skills. Without a prescribed structure, README content drifts toward generic project conventions that do not communicate what is actually distinctive about the project: setup guides, architecture diagrams and hyperparameter tables.
 
 This skill defines a fixed template so each invocation produces the same sections in the same order, and mandates that technical details are excluded unless they directly explain a skill.
 
@@ -213,15 +213,17 @@ This skill defines a fixed template so each invocation produces the same section
 <summary><strong>Sample output</strong></summary>
 
 ```
-Invoked after: readme-update skill updated — skills always visible,
-               only sample outputs in dropdowns, plain numbered table
+Invoked after: simulation skill and readme-update skill updated
 
 Changes made:
-  - Removed per-skill <details> wrappers — all skill content visible
-  - Skill headers changed to bold numbered text
-  - Table title changed to "Summary of Skills in Project"
-  - Table kept as plain text (no hyperlinks)
-  - Sample output dropdowns retained
+  - Simulation skill: fixed duplicate step, removed incorrect build_feature_row
+    call — P(win) now correctly derived from round_probs as conditional probability
+  - Simulation skill: renamed section to Temporal validity with explicit cutoff
+    table covering all data sources (H2H, form, tourney history, lagged stats)
+  - README Update skill: removed contradictory Sample Output Format block
+  - README Update skill: added project tagline, fixed Pipeline Integration row 4
+  - README Update skill: first principles text filled in for section 5
+  - README refreshed to match updated template
 
 Skills section verified: all 5 skills present with first principles,
 invoke command, and sample output dropdown.
