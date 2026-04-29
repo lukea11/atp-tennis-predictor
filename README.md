@@ -33,7 +33,7 @@ Without a skill, Claude pattern-matches to what the output *historically looked 
 | 1 | Ingestion | Data Check Skill (blocking) |
 | 2 | Feature Generation | Refactoring Skill enforced |
 | 3 | Training | Prediction Report Skill auto-generated |
-| 4 | Simulation | Tournament Skill invoked |
+| 4 | Simulation | Player-Tournament Prediction Skill invoked |
 
 ---
 
