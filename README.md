@@ -142,7 +142,14 @@ Djokovic — drops his tournament win ceiling to 11%.
 
 ## 4. Refactoring
 
-**First principles:** In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files. Without a single source of truth, updates are missed: a feature added to `features.py` but not to `train_xgb.py` causes a silent NaN column; a column renamed in `cleaning.py` but not in `build_dataset.py` breaks the join with no error until model training. The skill encodes standardised software engineering practices so that: every shared constant lives in one place so adding a feature touches one file.
+**First principles:** In a multi-file pipeline (cleaning → features → aggregation → build_dataset → train), adding one new feature requires coordinated changes across 4–5 files. 
+
+Without a single source of truth, updates can be missed: features can exist in one file but not another, column mismatches silently introduce NaNs and errors only appear during model training.
+
+This skill enforces a single source of truth for features and shared logic, so that:
+- each feature is defined in only one place
+- all downstream components reference that definition
+- adding or modifying a feature only requires changing only one file
 
 **Invoke:** `invoke the refactoring skill`
 
